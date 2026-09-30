@@ -1,76 +1,92 @@
-# Sistema de Agendamento — Casa de Saberes
+# Backend — Agendamento Casa de Saberes
 
-Este projeto prevê uma API para consultar a programação da Casa de Saberes, mostrar a disponibilidade para agendamentos e receber pedidos de **visita mediada** ou **uso de espaço**. A equipe administrativa acessa uma área protegida para analisar cada pedido e decidir manualmente pela aprovação ou recusa. A referência funcional é o [documento de requisitos](Documentação/Requisitos%20-%20Sistema%20de%20Agendamento%20Casa%20de%20Saberes.pdf).
+API para consultar a programação da Casa de Saberes, apresentar horários disponíveis e receber solicitações de **visita mediada** ou **uso de espaço**. A equipe administrativa consulta os pedidos e decide manualmente pela aprovação ou recusa. A referência funcional é o [documento de requisitos](Documentação/Requisitos%20-%20Sistema%20de%20Agendamento%20Casa%20de%20Saberes.pdf).
 
-## Estado do projeto
+Este repositório é dedicado ao **backend em Python, FastAPI e Pydantic**. A autenticação será feita pelo **Keycloak**. O frontend será um **WordPress separado**, responsável pelas páginas, formulários, calendários e acessibilidade.
 
-Este repositório contém o documento de requisitos e o **esqueleto de pastas do backend**. Ainda não há aplicação, banco de dados, dependências ou endpoints implementados. A escolha de tecnologia abaixo é uma proposta para orientar a implementação, não uma dependência já instalada.
+## Estado atual
 
-## Arquitetura proposta
+Há apenas o esqueleto de pastas e esta documentação. Os arquivos `__init__.py` identificam os pacotes Python. Aplicação FastAPI, endpoints, integração com Keycloak, dependências e banco de dados ainda serão implementados.
 
-Uma API REST em **Node.js + TypeScript + Express**, com **PostgreSQL** e consultas SQL parametrizadas pelo pacote `pg`, mantém poucas dependências e permite transações para proteger a decisão de agendamento. O frontend consome JSON; por isso, a camada *View* do MVC representa respostas JSON, sem páginas HTML no backend.
+## Estrutura
 
 ```text
 projsocial/
-├── Documentação/                         # Requisitos originais
+├── Documentação/             # Requisitos originais
 ├── README.md
-└── backend/
-    ├── src/
-    │   ├── config/                       # Ambiente, conexão com banco e parâmetros operacionais
-    │   ├── routes/                       # Rotas públicas e administrativas
-    │   ├── controllers/                  # Entrada HTTP: parâmetros, chamada ao modelo/serviço, resposta
-    │   ├── models/                       # Dados e acesso ao PostgreSQL
-    │   ├── views/                        # Formatação das respostas JSON, inclusive erros
-    │   ├── services/                     # Regras de disponibilidade e decisão manual
-    │   └── middlewares/                  # Autenticação, validação e tratamento de erros
-    ├── database/
-    │   └── migrations/                   # Evolução versionada do esquema SQL
-    └── storage/
-        └── private/                      # PDFs opcionais; arquivos não versionados
+├── app/                      # Pacote Python do backend
+│   ├── __init__.py
+│   ├── config/               # Ambiente, configuração do banco, Keycloak e CORS
+│   ├── controllers/          # APIRouter e operações HTTP públicas/administrativas
+│   ├── dependencies/         # Depends: usuário autenticado, permissões e conexão com banco
+│   ├── models/               # Representação dos dados e acesso à persistência
+│   ├── schemas/              # Pydantic: validação de entrada e contratos JSON de saída
+│   └── services/             # Regras de disponibilidade, conflitos e decisão manual
+├── database/
+│   └── migrations/           # Evolução versionada do esquema do banco
+└── storage/
+    └── private/              # Portfólios PDF opcionais; arquivos não versionados
 ```
 
-### Responsabilidade de cada camada
+Cada pasta de `app/` é um pacote Python. Quando a aplicação for implementada, `app/main.py` deverá criar a instância FastAPI, registrar os routers e configurar CORS e o tratamento de erros. O banco e a biblioteca de persistência ainda precisam ser escolhidos; PostgreSQL é uma opção para os dados relacionais e as transações de agendamento.
 
-`routes` associa URL e método ao controller. `controllers` recebe a requisição e coordena a resposta, sem conter SQL nem regras de conflito. `models` representa os dados e concentra as consultas parametrizadas. `views` define os campos públicos de saída e o formato de erro, evitando expor senhas ou dados internos. `services` só reúne operações que exigem regra de negócio ou transação, como calcular disponibilidade e aprovar solicitações. `middlewares` protege as rotas administrativas e valida entradas antes do controller. `config` centraliza parâmetros e conexão. As migrações mantêm a estrutura do banco reproduzível.
+## Camadas e fluxo
 
-Fluxo principal: **rota → middleware → controller → model/service → view JSON**. Na aprovação, o serviço consulta conflitos de horário e espaço dentro de uma transação, mas a decisão continua sendo feita por uma pessoa da equipe (RF17, RNG01). Uma solicitação enviada permanece **pendente** até essa decisão; ela não ocupa automaticamente a programação pública.
+A organização preserva as responsabilidades do MVC, adaptadas a uma API com frontend externo:
 
-### Domínio mínimo
-
-| Entidade | Dados e finalidade |
+| Responsabilidade | Local e função |
 | --- | --- |
-| Administrador | Identidade, e-mail e hash da senha para acesso ao painel. |
-| Solicitação | Tipo (`visita_mediada` ou `uso_espaco`), intervalo pedido, contato, proposta, referência ao espaço quando aplicável, status (`pendente`, `aprovada`, `recusada`) e registro da decisão. |
-| Atividade publicada | Eventos confirmados que aparecem na programação pública; mantidos separadamente das solicitações e dos agendamentos internos. |
+| Model | `models/` representa e persiste solicitações e atividades. `services/` concentra as regras que operam sobre esses dados. |
+| Controller | `controllers/` declara as rotas com `APIRouter`, recebe dados validados e chama os serviços ou modelos. |
+| View | As telas ficam no WordPress. Na API, `schemas/` define as representações JSON de saída usando Pydantic e `response_model`. |
+| Validação | `schemas/` define tipos e restrições dos dados recebidos; as regras de negócio ficam em `services/`. |
+| Autorização e recursos | `dependencies/` verifica identidade e permissões e fornece recursos por requisição através de `Depends`. |
+| Configuração | `config/` centraliza parâmetros de ambiente e conexões. |
 
-O espaço é uma **referência**, sem cadastro administrativo próprio neste escopo, conforme a definição do documento. Imagens e cores dos espaços (RF21/RF22) poderão vir de metadados estáticos ou de uma fonte externa; a escolha depende do catálogo ainda não levantado. A disponibilidade (RF03) deve ser calculada a partir das regras de funcionamento e das ocupações confirmadas, mantendo uma consulta distinta da programação pública (RF01/RF02).
+Os próprios controllers agrupam as rotas em routers. Os schemas de entrada e saída devem ser distintos quando necessário, para que respostas públicas exponham apenas os campos previstos.
 
-| Requisitos | Lugar na arquitetura |
+Fluxo: **WordPress → controller + schema de entrada + dependências → serviço/modelo → schema de saída → JSON para o WordPress**. Controllers coordenam HTTP; serviços aplicam as regras; modelos concentram a persistência. Uma transação deverá proteger a aprovação contra decisões simultâneas sobre horários conflitantes, conforme as regras de ocupação que forem definidas.
+
+## Autenticação e integração
+
+O Keycloak gerencia usuários, credenciais, login, logout e expiração de sessões/tokens. A integração do WordPress com o Keycloak obterá o **access token** do usuário administrativo por OpenID Connect. As chamadas administrativas à API enviarão `Authorization: Bearer <access_token>`.
+
+O backend deverá validar assinatura, expiração, emissor e audiência do token com as chaves públicas do Keycloak, além de exigir a permissão administrativa configurada. Essas verificações ficam em `dependencies/`. Token ausente ou inválido resulta em `401`; identidade válida sem a permissão necessária resulta em `403`. A sessão do WordPress, por si só, não autoriza acesso à API.
+
+As decisões deverão registrar a referência `sub` do usuário do Keycloak para identificar quem aprovou ou recusou o pedido. Credenciais e hashes de senha ficam sob responsabilidade do Keycloak. Consultas públicas e envio de solicitações são acessíveis ao usuário externo sem login, conforme o fluxo dos requisitos.
+
+Realm, clients, audiência da API e permissões serão definidos na integração. As origens do WordPress devem ser explicitamente permitidas em CORS quando o navegador acessar a API diretamente. CORS configura o acesso entre origens; a autorização administrativa continua sendo verificada pela API.
+
+## Domínio e requisitos
+
+| Dados | Finalidade |
 | --- | --- |
-| RF01–RF03 | Consultas públicas de programação e disponibilidade, com respostas diferentes. |
-| RF04–RF10 | Solicitações de visita ou espaço, contato e dados da proposta; portfólio em PDF opcional. |
-| RF12–RF19 | Autenticação, análise, calendário interno, decisão manual e eventual notificação. |
-| RF21–RF22 | Metadados dos espaços para imagens e cores na interface. |
+| Solicitação | Tipo de pedido, intervalo solicitado, contato, proposta e referência ao espaço quando aplicável; status `pendente`, `aprovada` ou `recusada`, com registro da decisão e de seu autor. |
+| Atividade publicada | Informações confirmadas e divulgadas na programação pública. Aprovação de um pedido e publicação precisam de regras próprias. |
+| Identidade administrativa | Usuário e permissões no Keycloak; o backend registra a referência do autor das decisões. |
 
-### Superfície da API prevista
+O espaço é uma referência a um catálogo mantido fora do sistema, conforme a definição do documento. Imagens e cores podem ser fornecidas por metadados estáticos ou por uma fonte externa, conforme o catálogo que for levantado.
 
-| Área | Operações previstas |
+| Requisitos | Responsabilidade prevista |
 | --- | --- |
-| Pública | Consultar programação; consultar disponibilidade e metadados dos espaços; criar solicitação de visita ou uso de espaço. |
-| Administrativa | Iniciar/encerrar sessão; listar e detalhar solicitações; consultar agendamentos; aprovar ou recusar manualmente. |
+| RF01–RF03 | Consultas distintas de programação pública e disponibilidade; os dois calendários são apresentados no WordPress. |
+| RF04–RF09 | Recebimento de pedidos, validação de contato e dados da proposta, incluindo características e classificação indicativa conforme a prioridade de cada requisito. |
+| RF10 | Portfólio PDF opcional, com acesso protegido em `storage/private/`; a descrição textual permanece disponível. |
+| RF12 | Login pelo Keycloak e proteção das operações administrativas pela API. |
+| RF13–RF17 | Listagem, detalhes, calendário interno, identificação de conflitos e decisão manual. |
+| RF18–RF19 | Registro da situação após a atividade e retorno ao solicitante, conforme prioridade e definição do canal de notificação. |
+| RF21–RF22 | Metadados dos espaços para imagens e cores consistentes nas telas do WordPress. |
 
-Dados de contato (RF06) devem ser validados e acessíveis somente à equipe autorizada. Senhas devem usar hash adequado; sessões devem expirar (RNF07). O PDF de portfólio (RF10) é opcional: quando implementado, deve ficar em `storage/private`, com validação de tipo e tamanho e acesso autorizado. Não armazenar anexos nem dados pessoais no controle de versão. Não há cobrança (RNG03). Dashboard (RF20) está fora do escopo.
+Dados de contato e anexos devem ter acesso restrito e não devem aparecer nas respostas públicas ou nos logs. O backend deverá validar PDFs e limitar seu tamanho quando esse recurso for implementado. A proteção dos dados de contato atende ao RNF08; o RNF07 será atendido pela configuração segura do Keycloak e pela validação dos tokens na API. A interface e os requisitos de acessibilidade pertencem ao WordPress.
 
-## Pontos a definir antes das respectivas funcionalidades
+## Decisões pendentes do produto
 
-- **Disponibilidade:** horários de funcionamento, duração das visitas, antecedência e critérios de conflito entre visita, espaço e uso total da Casa ainda não estão especificados.
-- **Espaços:** falta o catálogo e a fonte das imagens; a definição de espaço no documento exclui cadastro próprio no sistema. As cores consistentes são responsabilidade da interface, com identificadores estáveis fornecidos pela API.
-- **Publicação:** o documento não define como atividades entram na programação pública. Aprovação de solicitação e publicação devem permanecer ações distintas até essa regra ser definida.
-- **Notificação (RF19):** falta decidir se o retorno ao solicitante será manual ou por e-mail automático. O prazo de 48 horas é referência, não aprovação automática (RNG04).
-- **Visitas sem agendamento (RNG02):** a exceção para grupos pequenos ainda depende de decisão operacional.
+- **Disponibilidade:** horários de funcionamento, duração de visitas e conflitos entre visita, espaço e uso total da Casa.
+- **Espaços:** catálogo, imagens e fonte dos metadados, preservando o escopo sem cadastro administrativo próprio de espaços.
+- **Publicação:** como atividades confirmadas entram na programação pública.
+- **Notificação:** retorno manual ou e-mail automático (RF19).
+- **Visitas sem agendamento:** aplicação da exceção para grupos pequenos (RNG02).
 
-O próximo passo de implementação é definir essas regras com a Casa, criar o esquema SQL e implementar primeiro os requisitos essenciais. A interface, inclusive os dois calendários separados e a acessibilidade, pertence à camada de frontend.
-# AgendamentoCasaDosSaberes
-# AgendamentoCasaDosSaberes
-# AgendamentoCasaDosSaberes
-# AgendamentoCasaDosSaberes
+A confirmação é sempre manual (RNG01), não há cobrança (RNG03), e 48 horas é um prazo de referência para retorno (RNG04). Dashboards quantitativos (RF20) estão fora do escopo. Essas definições pendentes não impedem a organização das pastas, mas devem orientar a implementação das respectivas funcionalidades.
+
+Referências técnicas: [organização com APIRouter e dependências](https://fastapi.tiangolo.com/tutorial/bigger-applications/), [schemas de resposta no FastAPI](https://fastapi.tiangolo.com/tutorial/response-model/) e [OpenID Connect no Keycloak](https://www.keycloak.org/securing-apps/oidc-layers).
