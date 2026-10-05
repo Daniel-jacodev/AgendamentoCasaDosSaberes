@@ -5,7 +5,6 @@ from pydantic import BaseModel, ConfigDict, EmailStr, Field
 class StatusVisita(str, Enum):
     PENDENTE = "pendente"
     APROVADA = "aprovada"
-    RECUSADA = "recusada"
 
 class VisitaBase(BaseModel):
     nome_responsavel: str = Field(min_length=3, max_length=120)
