@@ -47,7 +47,6 @@ async def session():
 
 @pytest_asyncio.fixture
 async def evento(session: AsyncSession):
-    password = 'secret'
     evento = Evento(
         titulo='Oficina de Flauta Doce',
         descricao='Uma oficina prática focada no ensino de respiração, dedilhado e ornamentações básicas.',
@@ -56,26 +55,14 @@ async def evento(session: AsyncSession):
         classificacao_indicativa='Livre',
         espaco_id=1,
         responsavel='Coordenação Educativa',
-        publico_estimado=25
+        publico_estimado=25,
     )
 
     session.add(evento)
     await session.commit()
     await session.refresh(evento)
 
-    evento.clean_password = password
-
     return evento
-
-
-@pytest.fixture
-def token(client, evento):
-    response = client.post(
-        '/auth/token',
-        data={'eventoname': evento.email, 'password': evento.clean_password},
-    )
-
-    return response.json()['access_token']
 
 
 @contextmanager

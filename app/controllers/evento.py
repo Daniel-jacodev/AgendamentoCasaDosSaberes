@@ -11,6 +11,7 @@ router = APIRouter(prefix='/eventos', tags=['Eventos'])
 
 T_Session = Annotated[Session, Depends(get_db)]
 
+
 @router.get('/', response_model=EventosResponse, status_code=status.HTTP_200_OK)
 def get_evento(db: T_Session):
     return {'eventos': evento.get(db)}
