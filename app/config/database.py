@@ -19,6 +19,10 @@ class Base(DeclarativeBase):
     pass
 
 
+table_registry = Base.registry  # é usado para configurar os testes
+metadata = Base.metadata
+
+
 def get_db() -> Generator[Session, None, None]:
     db = SessionLocal()
     try:
