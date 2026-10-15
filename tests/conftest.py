@@ -71,7 +71,8 @@ async def evento(session: AsyncSession):
 @pytest.fixture
 def token(client, evento):
     response = client.post(
-        '/auth/token', data={'eventoname': evento.email, 'password': evento.clean_password}
+        '/auth/token',
+        data={'eventoname': evento.email, 'password': evento.clean_password},
     )
 
     return response.json()['access_token']
