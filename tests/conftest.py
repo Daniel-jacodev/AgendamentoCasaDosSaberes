@@ -25,7 +25,6 @@ def client(session: Session):
     app.dependency_overrides.clear()
 
 
-
 @pytest.fixture
 def session():
     engine = create_engine(
