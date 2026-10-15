@@ -8,7 +8,8 @@ class EventoBase(BaseModel):
     data_fim: datetime
     classificacao_indicativa: str | None = None
     espaco_id: int | None = None
-
+    responsavel: str | None = None
+    publico_estimado: int | None = None
 class EventoCreate(EventoBase):
     pass
 

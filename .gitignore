@@ -5,6 +5,10 @@ __pycache__/
 # Ambiente virtual
 .venv/
 
+# Banco de dados local
+storage/*.db
+storage/*.db-*
+
 # Arquivos de ambiente
 .env
 
