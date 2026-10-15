@@ -17,3 +17,17 @@ def create(db: Session, dados: EventoCreate) -> Evento:
     db.commit()
     db.refresh(evento)
     return evento
+
+
+def update(db: Session, id: int, dados: EventoCreate):
+    evento = db.scalar(select(Evento).where(Evento.id == id))
+
+    if not evento:
+        return None
+
+    for key, value in dados.model_dump().items():
+        setattr(evento, key, value)
+
+    db.commit()
+    db.refresh(evento)
+    return evento

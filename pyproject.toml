@@ -27,6 +27,7 @@ test = 'pytest -s -x --cov=app -vv'
 
 [tool.ruff]
 extend-exclude = ['database']
+line-length = 120
 
 [tool.ruff.lint]
 preview = true

@@ -2,7 +2,6 @@ from contextlib import contextmanager
 from datetime import datetime
 
 import pytest
-import pytest_asyncio
 from fastapi.testclient import TestClient
 from sqlalchemy import create_engine, event
 from sqlalchemy.orm import Session
