@@ -7,7 +7,7 @@ from app.config.database import Base
 
 
 class Evento(Base):
-    __tablename__ = "eventos"
+    __tablename__ = 'eventos'
 
     id: Mapped[int] = mapped_column(Integer, primary_key=True, index=True)
     titulo: Mapped[str] = mapped_column(String(150), nullable=False)

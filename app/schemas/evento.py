@@ -1,5 +1,7 @@
 from datetime import datetime
+
 from pydantic import BaseModel, ConfigDict, Field
+
 
 class EventoBase(BaseModel):
     titulo: str = Field(min_length=3, max_length=150)
@@ -10,12 +12,16 @@ class EventoBase(BaseModel):
     espaco_id: int | None = None
     responsavel: str | None = None
     publico_estimado: int | None = None
+
+
 class EventoCreate(EventoBase):
     pass
+
 
 class EventoResponse(EventoBase):
     model_config = ConfigDict(from_attributes=True)
     id: int
+
 
 class EventosResponse(BaseModel):
     model_config = ConfigDict(from_attributes=True)

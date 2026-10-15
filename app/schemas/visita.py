@@ -1,10 +1,13 @@
 from datetime import datetime
 from enum import Enum
+
 from pydantic import BaseModel, ConfigDict, EmailStr, Field
 
+
 class StatusVisita(str, Enum):
-    PENDENTE = "pendente"
-    APROVADA = "aprovada"
+    PENDENTE = 'pendente'
+    APROVADA = 'aprovada'
+
 
 class VisitaBase(BaseModel):
     nome_responsavel: str = Field(min_length=3, max_length=120)
@@ -16,8 +19,10 @@ class VisitaBase(BaseModel):
     data_fim: datetime
     observacoes: str | None = Field(default=None, max_length=1000)
 
+
 class VisitaCreate(VisitaBase):
     pass
+
 
 class VisitaResponse(VisitaBase):
     model_config = ConfigDict(from_attributes=True)

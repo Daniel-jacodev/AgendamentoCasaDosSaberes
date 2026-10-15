@@ -1,4 +1,3 @@
-
 from app.models.evento import Evento
 
-__all__ = ["Evento"]
+__all__ = ['Evento']

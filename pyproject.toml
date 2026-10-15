@@ -8,8 +8,21 @@ dependencies = []
 
 [dependency-groups]
 dev = [
+    "ruff>=0.17.0",
     "taskipy>=1.14.1",
 ]
 
 [tool.taskipy.tasks]
 run = 'fastapi dev app/main.py'
+format = 'ruff check --select I --fix . && ruff format .'
+
+[tool.ruff]
+extend-exclude = ['database']
+
+[tool.ruff.lint]
+preview = true
+select = ['I', 'F', 'W', 'PL', 'PT', 'FAST']
+
+[tool.ruff.format]
+preview = true
+quote-style = 'single'

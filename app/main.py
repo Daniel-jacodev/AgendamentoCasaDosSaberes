@@ -1,5 +1,5 @@
-from contextlib import asynccontextmanager
 from collections.abc import AsyncIterator
+from contextlib import asynccontextmanager
 
 from fastapi import FastAPI
 
@@ -13,5 +13,5 @@ async def lifespan(_: FastAPI) -> AsyncIterator[None]:
     yield
 
 
-app = FastAPI(title="Agendamento Casa de Saberes", lifespan=lifespan)
+app = FastAPI(title='Agendamento Casa de Saberes', lifespan=lifespan)
 app.include_router(eventos_router)

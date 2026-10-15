@@ -1,14 +1,12 @@
-from sqlalchemy.orm import Session
 from sqlalchemy import select
+from sqlalchemy.orm import Session
 
 from app.models.evento import Evento
 from app.schemas.evento import EventoCreate
 
 
 def get(db: Session):
-    eventos = db.scalars(
-        select(Evento)
-    ).all()
+    eventos = db.scalars(select(Evento)).all()
 
     return eventos
 
