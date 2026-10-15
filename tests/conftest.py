@@ -4,8 +4,8 @@ from datetime import datetime
 import pytest
 import pytest_asyncio
 from fastapi.testclient import TestClient
-from sqlalchemy import event
-from sqlalchemy.ext.asyncio import AsyncSession, create_async_engine
+from sqlalchemy import create_engine, event
+from sqlalchemy.orm import Session
 from sqlalchemy.pool import StaticPool
 
 from app.config.database import get_db, table_registry
@@ -14,7 +14,7 @@ from app.models import Evento
 
 
 @pytest.fixture
-def client(session: AsyncSession):
+def client(session: Session):
     def get_db_override():
         return session
 
@@ -25,28 +25,27 @@ def client(session: AsyncSession):
     app.dependency_overrides.clear()
 
 
-@pytest_asyncio.fixture
-async def session():
-    engine = create_async_engine(
-        'sqlite+aiosqlite:///:memory:',
+
+@pytest.fixture
+def session():
+    engine = create_engine(
+        'sqlite:///:memory:',
         connect_args={'check_same_thread': False},
         poolclass=StaticPool,
     )
 
-    async with engine.begin() as conn:
-        await conn.run_sync(table_registry.metadata.create_all)
+    table_registry.metadata.create_all(engine)
 
-    async with AsyncSession(engine) as session:
+    with Session(engine) as session:
         yield session
 
-    async with engine.begin() as conn:
-        await conn.run_sync(table_registry.metadata.drop_all)
+    table_registry.metadata.drop_all(engine)
 
     engine.dispose()
 
 
-@pytest_asyncio.fixture
-async def evento(session: AsyncSession):
+@pytest.fixture
+def evento(session: Session):
     evento = Evento(
         titulo='Oficina de Flauta Doce',
         descricao='Uma oficina prática focada no ensino de respiração, dedilhado e ornamentações básicas.',
@@ -59,8 +58,8 @@ async def evento(session: AsyncSession):
     )
 
     session.add(evento)
-    await session.commit()
-    await session.refresh(evento)
+    session.commit()
+    session.refresh(evento)
 
     return evento
 
