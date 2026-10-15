@@ -11,7 +11,7 @@ def get(db: Session):
     return eventos
 
 
-def criar_evento(db: Session, dados: EventoCreate) -> Evento:
+def create(db: Session, dados: EventoCreate) -> Evento:
     evento = Evento(**dados.model_dump())
     db.add(evento)
     db.commit()

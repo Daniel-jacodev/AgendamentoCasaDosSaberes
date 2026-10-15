@@ -19,4 +19,4 @@ def get_evento(db: T_Session):
 
 @router.post('/', response_model=EventoResponse, status_code=status.HTTP_201_CREATED)
 def create_evento(evento: EventoCreate, db: T_Session):
-    return eventoService.criar_evento(db, evento)
+    return eventoService.create(db, evento)
