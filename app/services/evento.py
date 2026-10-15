@@ -5,7 +5,7 @@ from app.models.evento import Evento
 from app.schemas.evento import EventoCreate
 
 
-def get(db: Session):
+def get(db: Session) -> list[Evento]:
     eventos = db.scalars(select(Evento)).all()
 
     return eventos
@@ -19,7 +19,7 @@ def create(db: Session, dados: EventoCreate) -> Evento:
     return evento
 
 
-def update(db: Session, id: int, dados: EventoCreate):
+def update(db: Session, id: int, dados: EventoCreate) -> Evento | None:
     evento = db.scalar(select(Evento).where(Evento.id == id))
 
     if not evento:
