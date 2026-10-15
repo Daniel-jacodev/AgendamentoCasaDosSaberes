@@ -1,0 +1,15 @@
+[project]
+name = "agendamentocasadossaberes"
+version = "0.1.0"
+description = "Add your description here"
+readme = "README.md"
+requires-python = ">=3.13"
+dependencies = []
+
+[dependency-groups]
+dev = [
+    "taskipy>=1.14.1",
+]
+
+[tool.taskipy.tasks]
+run = 'fastapi dev app/main.py'

@@ -16,3 +16,7 @@ class EventoCreate(EventoBase):
 class EventoResponse(EventoBase):
     model_config = ConfigDict(from_attributes=True)
     id: int
+
+class EventosResponse(BaseModel):
+    model_config = ConfigDict(from_attributes=True)
+    eventos: list[EventoResponse]

@@ -4,7 +4,7 @@ from collections.abc import AsyncIterator
 from fastapi import FastAPI
 
 from app.config.database import init_db
-from app.controllers.create_evento import router as eventos_router
+from app.controllers.evento import router as eventos_router
 
 
 @asynccontextmanager
