@@ -1,17 +1,20 @@
 from collections.abc import Generator
-from pathlib import Path
 
-from sqlalchemy import create_engine
+from sqlalchemy import URL, create_engine
 from sqlalchemy.orm import DeclarativeBase, Session, sessionmaker
 
-DATABASE_PATH = Path(__file__).resolve().parents[2] / 'storage' / 'agendamento.db'
-DATABASE_PATH.parent.mkdir(parents=True, exist_ok=True)
-DATABASE_URL = f'sqlite:///{DATABASE_PATH}'
+from app.config.config import settings
 
-engine = create_engine(
-    DATABASE_URL,
-    connect_args={'check_same_thread': False},
+DATABASE_URL = URL.create(
+    'postgresql+psycopg',
+    username=settings.db_user,
+    password=settings.db_password,
+    host=settings.db_host,
+    port=settings.db_port,
+    database=settings.db_name,
 )
+
+engine = create_engine(DATABASE_URL, pool_pre_ping=True, connect_args={'connect_timeout': 10})
 SessionLocal = sessionmaker(bind=engine, autoflush=False, autocommit=False)
 
 
@@ -33,6 +36,6 @@ def get_db() -> Generator[Session, None, None]:
 
 def init_db() -> None:
     # Importa os models para registrar suas tabelas nos metadados do Base.
-    from app.models import evento  # noqa: F401
+    from app.models import evento  # noqa: F401, PLC0415
 
     Base.metadata.create_all(bind=engine)

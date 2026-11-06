@@ -4,3 +4,4 @@ uvicorn[standard]>=0.30,<1.0
 python-keycloak>=5,<8
 python-dotenv>=1,<2
 email-validator>=2,<3
+psycopg[binary]>=3.2,<4

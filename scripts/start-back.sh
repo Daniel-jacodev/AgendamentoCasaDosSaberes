@@ -10,6 +10,7 @@ if [[ ! -x "$PROJECT_ROOT/.venv/bin/python" ]]; then
     exit 1
 fi
 
-# O SQLite da aplicacao e inicializado automaticamente pelo lifespan da API.
+# Inicia o PostgreSQL antes da API; as tabelas sao criadas no lifespan.
+"$PROJECT_ROOT/scripts/start-db.sh"
 # Argumentos adicionais sao repassados ao Uvicorn (ex.: --port 8001).
 exec "$PROJECT_ROOT/.venv/bin/python" -m uvicorn app.main:app --reload --host 127.0.0.1 --port 8000 "$@"
