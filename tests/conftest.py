@@ -13,7 +13,10 @@ from app.models import Evento
 
 
 @pytest.fixture
-def client(session: Session):
+def client(session: Session, monkeypatch):
+    # A fixture session ja cria as tabelas no banco isolado dos testes.
+    monkeypatch.setattr('app.main.init_db', lambda: None)
+
     def get_db_override():
         return session
 

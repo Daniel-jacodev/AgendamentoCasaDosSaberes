@@ -34,3 +34,11 @@ def get_current_user_claims(
     if credentials is None:
         raise HTTPException(401, 'Token Bearer nao informado.', headers={'WWW-Authenticate': 'Bearer'})
     return validar_token_keycloak(credentials.credentials)
+
+
+def get_optional_user_claims(
+    credentials: Annotated[HTTPAuthorizationCredentials | None, Depends(bearer_scheme)],
+) -> dict | None:
+    if credentials is None:
+        return None
+    return validar_token_keycloak(credentials.credentials)
