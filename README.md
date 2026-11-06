@@ -2,11 +2,15 @@
 
 API para consultar a programação da Casa de Saberes, apresentar horários disponíveis e receber solicitações de **visita mediada** ou **uso de espaço**. A equipe administrativa consulta os pedidos e decide manualmente pela aprovação ou recusa. A referência funcional é o [documento de requisitos](Documentação/Requisitos%20-%20Sistema%20de%20Agendamento%20Casa%20de%20Saberes.pdf).
 
-Este repositório é dedicado ao **backend em Python, FastAPI e Pydantic**. A autenticação será feita pelo **Keycloak**. O frontend será um **WordPress separado**, responsável pelas páginas, formulários, calendários e acessibilidade.
+Este repositório é dedicado ao **backend em Python, FastAPI e Pydantic**. A autenticação é feita pelo **Keycloak**. O frontend será um **WordPress separado**, responsável pelas páginas, formulários, calendários e acessibilidade.
 
 ## Estado atual
 
-Há apenas o esqueleto de pastas e esta documentação. Os arquivos `__init__.py` identificam os pacotes Python. Aplicação FastAPI, endpoints, integração com Keycloak, dependências e banco de dados ainda serão implementados.
+A API possui rotas de eventos e autenticação com Keycloak: `POST /usuarios` (cadastro), `POST /usuarios/login` (tokens) e `GET /usuarios/me` (perfil autenticado). Consulte o [guia de execução e exemplos](Documentação/Keycloak.md).
+
+## Iniciar os serviços
+
+Consulte os [scripts de inicialização](scripts/README.md) para iniciar o backend, o PostgreSQL e o Keycloak separadamente.
 
 ## Estrutura
 
@@ -48,6 +52,8 @@ Os próprios controllers agrupam as rotas em routers. Os schemas de entrada e sa
 Fluxo: **WordPress → controller + schema de entrada + dependências → serviço/modelo → schema de saída → JSON para o WordPress**. Controllers coordenam HTTP; serviços aplicam as regras; modelos concentram a persistência. Uma transação deverá proteger a aprovação contra decisões simultâneas sobre horários conflitantes, conforme as regras de ocupação que forem definidas.
 
 ## Autenticação e integração
+
+Para iniciar o Keycloak em Docker e configurar o realm e o cliente OIDC, consulte o [guia de Keycloak](Documentação/Keycloak.md).
 
 O Keycloak gerencia usuários, credenciais, login, logout e expiração de sessões/tokens. A integração do WordPress com o Keycloak obterá o **access token** do usuário administrativo por OpenID Connect. As chamadas administrativas à API enviarão `Authorization: Bearer <access_token>`.
 
