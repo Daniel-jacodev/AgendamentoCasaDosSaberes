@@ -1,5 +1,28 @@
 from http import HTTPStatus
 
+from app.models.evento import Evento
+
+
+def test_delete_evento(client, evento, session):
+    evento_id = evento.id
+
+    response = client.delete(f'/eventos/{evento_id}')
+
+    assert response.status_code == HTTPStatus.NO_CONTENT
+    assert response.content == b''
+    session.expire_all()
+    assert session.get(Evento, evento_id) is None
+    assert client.get('/eventos/').json() == {'eventos': []}
+    assert client.delete(f'/eventos/{evento_id}').status_code == HTTPStatus.NOT_FOUND
+
+
+def test_delete_evento_not_found(client, evento):
+    response = client.delete('/eventos/999')
+
+    assert response.status_code == HTTPStatus.NOT_FOUND
+    assert response.json() == {'detail': 'Evento não encontrado.'}
+    assert len(client.get('/eventos/').json()['eventos']) == 1
+
 
 def test_get_evento_empty(client):
     response = client.get('/eventos')

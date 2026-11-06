@@ -19,6 +19,16 @@ def create(db: Session, dados: EventoCreate) -> Evento:
     return evento
 
 
+def delete(db: Session, evento_id: int) -> bool:
+    evento = db.get(Evento, evento_id)
+    if evento is None:
+        return False
+
+    db.delete(evento)
+    db.commit()
+    return True
+
+
 def update(db: Session, id: int, dados: EventoCreate) -> Evento | None:
     evento = db.scalar(select(Evento).where(Evento.id == id))
 

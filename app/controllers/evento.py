@@ -1,6 +1,6 @@
 from typing import Annotated
 
-from fastapi import APIRouter, Depends, HTTPException, status
+from fastapi import APIRouter, Depends, HTTPException, Response, status
 from sqlalchemy.orm import Session
 
 from app.config.database import get_db
@@ -30,3 +30,11 @@ def update_evento(evento_id: int, evento: EventoCreate, db: T_Session):
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail='Evento não encontrado.')
 
     return evento
+
+
+@router.delete('/{evento_id}', status_code=status.HTTP_204_NO_CONTENT)
+def delete_evento(evento_id: int, db: T_Session):
+    if not eventoService.delete(db, evento_id):
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail='Evento não encontrado.')
+
+    return Response(status_code=status.HTTP_204_NO_CONTENT)
