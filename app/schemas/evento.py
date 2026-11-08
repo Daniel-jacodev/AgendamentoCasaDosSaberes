@@ -4,18 +4,24 @@ from zoneinfo import ZoneInfo
 
 from pydantic import BaseModel, ConfigDict, Field, field_validator, model_validator
 
+from ..models.evento import SegmentoEnum, PautaEnum, PeriodicidadeEnum, ClassificacaoIndicativaEnum
 
 class EventoBase(BaseModel):
     status: Literal['pendente', 'aceito'] = 'pendente'
-    celular: str | None = Field(default=None, max_length=30)
-    titulo: str = Field(min_length=3, max_length=150)
-    descricao: str = Field(min_length=10, max_length=2000)
+    responsavel: str = Field(..., min_length=3, max_length=150)
+    celular: str = Field(..., min_length=5, max_length=30)
+    email: str = Field(..., min_length=5, max_length=50)
+    entidade: str = Field(..., min_length=3, max_length=50)
+    segmento: SegmentoEnum
+    pauta: PautaEnum
+    periodicidade: PeriodicidadeEnum
+    classificacao_indicativa: ClassificacaoIndicativaEnum
+    publico_estimado: int = Field(..., gt=0)
+    titulo: str = Field(..., min_length=3, max_length=150)
+    descricao: str = Field(..., min_length=10, max_length=2000)
     data_inicio: datetime
     data_fim: datetime
-    classificacao_indicativa: str | None = None
     espaco_id: Literal[1, 2, 3, 4] = Field(description='1 = Auditorio; 2 = Quintal; 3 = Salas Expositivas; 4 = Varanda')
-    responsavel: str | None = None
-    publico_estimado: int | None = None
 
 
 class EventoWrite(EventoBase):

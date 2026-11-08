@@ -24,7 +24,11 @@ def create_evento(
     db: T_Session,
     claims: Annotated[dict | None, Depends(get_optional_user_claims)],
 ):
-    status_evento = 'aceito' if claims is not None else 'pendente'
+    if claims is not None:
+        status_evento = 'aceito'
+    else:
+        status_evento = 'pendente'
+
     return eventoService.create(db, evento, status_evento)
 
 
