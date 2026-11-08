@@ -7,7 +7,6 @@ from pydantic import BaseModel, ConfigDict, Field, field_validator, model_valida
 from ..models.evento import SegmentoEnum, PautaEnum, PeriodicidadeEnum, ClassificacaoIndicativaEnum
 
 class EventoBase(BaseModel):
-    status: Literal['pendente', 'aceito'] = 'pendente'
     responsavel: str = Field(..., min_length=3, max_length=150)
     celular: str = Field(..., min_length=5, max_length=30)
     email: str = Field(..., min_length=5, max_length=50)
@@ -41,16 +40,17 @@ class EventoWrite(EventoBase):
 
 
 class EventoCreate(EventoWrite):
-    status: Literal['pendente', 'aceito'] = 'pendente'
+    pass
 
 
 class EventoUpdate(EventoWrite):
-    pass
+    status: Literal['pendente', 'aceito'] = 'pendente'
 
 
 class EventoResponse(EventoBase):
     model_config = ConfigDict(from_attributes=True)
     id: int
+    status: Literal['pendente', 'aceito'] = 'pendente'
 
 
 class EventosResponse(BaseModel):
