@@ -11,7 +11,6 @@ from pydantic import (
     model_validator,
 )
 
-from app.constants.espacos import Espaco
 from app.models.evento import (
     ClassificacaoIndicativaEnum,
     PautaEnum,
@@ -21,44 +20,12 @@ from app.models.evento import (
 
 
 class EventoBase(BaseModel):
-    responsavel: str = Field(
-        ...,
-        min_length=3,
-        max_length=150,
-    )
-
-    celular: str = Field(
-        ...,
-        min_length=8,
-        max_length=30,
-    )
-
-    email: EmailStr
-
-    entidade: str = Field(
-        ...,
-        min_length=3,
-        max_length=150,
-    )
-
-    segmento: SegmentoEnum
-    pauta: PautaEnum
-    periodicidade: PeriodicidadeEnum
-    classificacao_indicativa: ClassificacaoIndicativaEnum
-
-    publico_estimado: int = Field(
-        ...,
-        gt=0,
-    )
-
     titulo: str = Field(
-        ...,
         min_length=3,
         max_length=150,
     )
 
     descricao: str = Field(
-        ...,
         min_length=10,
         max_length=2000,
     )
@@ -66,21 +33,67 @@ class EventoBase(BaseModel):
     data_inicio: datetime
     data_fim: datetime
 
-    espaco: Espaco
+    espaco_id: int = Field(
+        ge=1,
+        le=5,
+        description=(
+            "1 = Auditório; "
+            "2 = Quintal; "
+            "3 = Salas Expositivas; "
+            "4 = Varanda; "
+            "5 = Área Externa"
+        ),
+    )
+
+    responsavel: str | None = Field(
+        default=None,
+        min_length=3,
+        max_length=150,
+    )
+
+    celular: str | None = Field(
+        default=None,
+        min_length=5,
+        max_length=30,
+    )
+
+    email: EmailStr | None = None
+
+    entidade: str | None = Field(
+        default=None,
+        min_length=3,
+        max_length=150,
+    )
+
+    segmento: SegmentoEnum | None = None
+
+    pauta: PautaEnum | None = None
+
+    periodicidade: PeriodicidadeEnum | None = None
+
+    classificacao_indicativa: ClassificacaoIndicativaEnum | None = None
+
+    publico_estimado: int | None = Field(
+        default=None,
+        gt=0,
+    )
 
     link_complementar: str | None = Field(
         default=None,
         max_length=500,
     )
 
-    arquivo_pdf_id: int | None = None
+    arquivo_pdf_id: int | None = Field(
+        default=None,
+        gt=0,
+    )
 
 
 class EventoWrite(EventoBase):
-
     @field_validator("data_inicio", "data_fim")
     @classmethod
     def normalizar_horario(cls, valor: datetime) -> datetime:
+     
         if valor.tzinfo is not None:
             return (
                 valor
@@ -101,8 +114,10 @@ class EventoWrite(EventoBase):
 
 
 class EventoCreate(EventoWrite):
-    pass
-
+    status: Literal["pendente", "aceito"] = Field(
+        default="pendente",
+        exclude=True,
+    )
 
 class EventoUpdate(EventoWrite):
     status: Literal["pendente", "aceito"] = "pendente"
@@ -126,15 +141,24 @@ class EventoFilter(BaseModel):
 
     data_inicio_de: datetime | None = None
     data_inicio_ate: datetime | None = None
+
     data_fim_de: datetime | None = None
     data_fim_ate: datetime | None = None
 
-    espaco: Espaco | None = None
+    espaco_id: int | None = Field(
+        default=None,
+        ge=1,
+        le=5,
+    )
 
     classificacao_indicativa: ClassificacaoIndicativaEnum | None = None
+
     responsavel: str | None = None
+
     entidade: str | None = None
+
     segmento: SegmentoEnum | None = None
+
     pauta: PautaEnum | None = None
 
     offset: int = Field(
@@ -157,4 +181,7 @@ class EventoFilter(BaseModel):
         "data_fim",
     ] = "data_inicio"
 
-    order: Literal["asc", "desc"] = "asc"
+    order: Literal[
+        "asc",
+        "desc",
+    ] = "asc"

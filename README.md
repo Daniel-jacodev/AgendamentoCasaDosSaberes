@@ -2,11 +2,29 @@
 
 API para consultar a programação da Casa de Saberes, apresentar horários disponíveis e receber solicitações de **visita mediada** ou **uso de espaço**. A equipe administrativa consulta os pedidos e decide manualmente pela aprovação ou recusa. A referência funcional é o [documento de requisitos](Documentação/Requisitos%20-%20Sistema%20de%20Agendamento%20Casa%20de%20Saberes.pdf).
 
-Este repositório é dedicado ao **backend em Python, FastAPI e Pydantic**. A autenticação será feita pelo **Keycloak**. O frontend será um **WordPress separado**, responsável pelas páginas, formulários, calendários e acessibilidade.
+Este repositório é dedicado ao **backend em Python, FastAPI e Pydantic**. A autenticação é feita pelo **Keycloak**. O frontend será um **WordPress separado**, responsável pelas páginas, formulários, calendários e acessibilidade.
 
 ## Estado atual
 
-Há apenas o esqueleto de pastas e esta documentação. Os arquivos `__init__.py` identificam os pacotes Python. Aplicação FastAPI, endpoints, integração com Keycloak, dependências e banco de dados ainda serão implementados.
+A API possui rotas de eventos e autenticação com Keycloak: `POST /usuarios` (cadastro), `POST /usuarios/login` (tokens) e `GET /usuarios/me` (perfil autenticado). Consulte o [guia de execução e exemplos](Documentação/Keycloak.md).
+
+## Contrato de eventos do MVP
+
+`GET /eventos/` retorna `{"eventos": [...]}`. `POST /eventos/` é público: sem sessão, retorna o evento com status `pendente`; com token válido, identifica o administrador e cria o evento já como `aceito`. O status no JSON de entrada não altera essa regra. O campo `celular` é opcional (até 30 caracteres). Enviar `status="aceito"` no cadastro público mantém o evento pendente; a aprovação exige autenticação.
+
+A aprovação de uma solicitação pública envia o evento completo para `PUT /eventos/{id}` com `status="aceito"`. A resposta e a listagem retornam o status persistido. No painel administrativo, eventos criados por uma pessoa autenticada já são aceitos; solicitações públicas continuam sujeitas a aprovação ou exclusão. Os únicos status são `pendente` e `aceito`. A recusa usa `DELETE /eventos/{id}`, com `204` sem corpo. GET e POST são públicos; PUT e DELETE exigem token do Keycloak. A confirmação por pop-up acontece no frontend antes da chamada; a API não mantém estados de confirmação ou histórico de recusas.
+
+Espaços: `1 = Auditório`, `2 = Quintal`, `3 = Salas Expositivas`, `4 = Varanda`; o espaço é obrigatório. Consulte os [comandos de inicialização](scripts/README.md).
+
+## Horários dos eventos
+
+Criação e alteração recusam períodos que se sobrepõem a outro evento no mesmo espaço, retornando `409` com `detail` explicando o conflito. Eventos em espaços diferentes podem ocorrer simultaneamente. Por exemplo, se existe um evento das 14h às 16h, outro no mesmo espaço das 15h às 17h é recusado; um evento a partir das 16h é permitido. Na alteração, o próprio evento é desconsiderado na verificação.
+
+O fim deve ser posterior ao início; períodos inválidos retornam `422`. Datas sem fuso representam o horário de Fortaleza; datas com offset são convertidas para esse horário antes de salvar e comparar. A API usa um [lock transacional do PostgreSQL](https://www.postgresql.org/docs/17/explicit-locking.html) para serializar a verificação e a gravação e impedir reservas simultâneas conflitantes. Eventos que já estavam cadastrados são preservados.
+
+## Iniciar os serviços
+
+Consulte os [scripts de inicialização](scripts/README.md) para iniciar o backend, o PostgreSQL e o Keycloak separadamente.
 
 ## Estrutura
 
@@ -22,13 +40,11 @@ projsocial/
 │   ├── models/               # Representação dos dados e acesso à persistência
 │   ├── schemas/              # Pydantic: validação de entrada e contratos JSON de saída
 │   └── services/             # Regras de disponibilidade, conflitos e decisão manual
-├── database/
-│   └── migrations/           # Evolução versionada do esquema do banco
 └── storage/
     └── private/              # Portfólios PDF opcionais; arquivos não versionados
 ```
 
-Cada pasta de `app/` é um pacote Python. Quando a aplicação for implementada, `app/main.py` deverá criar a instância FastAPI, registrar os routers e configurar CORS e o tratamento de erros. O banco e a biblioteca de persistência ainda precisam ser escolhidos; PostgreSQL é uma opção para os dados relacionais e as transações de agendamento.
+Cada pasta de `app/` é um pacote Python. `app/main.py` cria a instância FastAPI e registra os routers. Os eventos são persistidos com SQLAlchemy e Psycopg 3 no PostgreSQL do serviço Docker `db`, com volume `app-db-data`. O Keycloak usa um banco separado (`keycloak-db`). As variáveis `DB_*` do `.env` configuram a conexão da API; consulte os [scripts de inicialização](scripts/README.md).
 
 ## Camadas e fluxo
 
@@ -48,6 +64,8 @@ Os próprios controllers agrupam as rotas em routers. Os schemas de entrada e sa
 Fluxo: **WordPress → controller + schema de entrada + dependências → serviço/modelo → schema de saída → JSON para o WordPress**. Controllers coordenam HTTP; serviços aplicam as regras; modelos concentram a persistência. Uma transação deverá proteger a aprovação contra decisões simultâneas sobre horários conflitantes, conforme as regras de ocupação que forem definidas.
 
 ## Autenticação e integração
+
+Para iniciar o Keycloak em Docker e configurar o realm e o cliente OIDC, consulte o [guia de Keycloak](Documentação/Keycloak.md).
 
 O Keycloak gerencia usuários, credenciais, login, logout e expiração de sessões/tokens. A integração do WordPress com o Keycloak obterá o **access token** do usuário administrativo por OpenID Connect. As chamadas administrativas à API enviarão `Authorization: Bearer <access_token>`.
 

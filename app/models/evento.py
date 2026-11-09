@@ -1,18 +1,10 @@
 import enum
 from datetime import datetime
 
-from sqlalchemy import (
-    CheckConstraint,
-    DateTime,
-    Enum,
-    Integer,
-    String,
-    Text,
-)
+from sqlalchemy import DateTime, Enum, Integer, String, Text
 from sqlalchemy.orm import Mapped, mapped_column
 
 from app.config.database import Base
-from app.constants.espacos import Espaco
 
 
 class SegmentoEnum(str, enum.Enum):
@@ -52,17 +44,6 @@ class ClassificacaoIndicativaEnum(str, enum.Enum):
 class Evento(Base):
     __tablename__ = "eventos"
 
-    __table_args__ = (
-        CheckConstraint(
-            "status IN ('pendente', 'aceito')",
-            name="ck_eventos_status",
-        ),
-        CheckConstraint(
-            "publico_estimado > 0",
-            name="ck_eventos_publico_estimado",
-        ),
-    )
-
     id: Mapped[int] = mapped_column(
         Integer,
         primary_key=True,
@@ -74,53 +55,6 @@ class Evento(Base):
         nullable=False,
         default="pendente",
         server_default="pendente",
-    )
-
-    responsavel: Mapped[str] = mapped_column(
-        String(150),
-        nullable=False,
-    )
-
-    celular: Mapped[str] = mapped_column(
-        String(30),
-        nullable=False,
-    )
-
-    email: Mapped[str] = mapped_column(
-        String(255),
-        nullable=False,
-    )
-
-    entidade: Mapped[str] = mapped_column(
-        String(150),
-        nullable=False,
-    )
-
-    segmento: Mapped[SegmentoEnum] = mapped_column(
-        Enum(SegmentoEnum),
-        nullable=False,
-    )
-
-    pauta: Mapped[PautaEnum] = mapped_column(
-        Enum(PautaEnum),
-        nullable=False,
-    )
-
-    periodicidade: Mapped[PeriodicidadeEnum] = mapped_column(
-        Enum(PeriodicidadeEnum),
-        nullable=False,
-    )
-
-    classificacao_indicativa: Mapped[ClassificacaoIndicativaEnum] = (
-        mapped_column(
-            Enum(ClassificacaoIndicativaEnum),
-            nullable=False,
-        )
-    )
-
-    publico_estimado: Mapped[int] = mapped_column(
-        Integer,
-        nullable=False,
     )
 
     titulo: Mapped[str] = mapped_column(
@@ -142,10 +76,55 @@ class Evento(Base):
         DateTime,
         nullable=False,
     )
-
-    espaco: Mapped[Espaco] = mapped_column(
-        Enum(Espaco),
+    
+    espaco_id: Mapped[int] = mapped_column(
+        Integer,
         nullable=False,
+    )
+
+    responsavel: Mapped[str | None] = mapped_column(
+        String(150),
+        nullable=True,
+    )
+
+    celular: Mapped[str | None] = mapped_column(
+        String(30),
+        nullable=True,
+    )
+
+    email: Mapped[str | None] = mapped_column(
+        String(255),
+        nullable=True,
+    )
+
+    entidade: Mapped[str | None] = mapped_column(
+        String(150),
+        nullable=True,
+    )
+
+    segmento: Mapped[SegmentoEnum | None] = mapped_column(
+        Enum(SegmentoEnum),
+        nullable=True,
+    )
+
+    pauta: Mapped[PautaEnum | None] = mapped_column(
+        Enum(PautaEnum),
+        nullable=True,
+    )
+
+    periodicidade: Mapped[PeriodicidadeEnum | None] = mapped_column(
+        Enum(PeriodicidadeEnum),
+        nullable=True,
+    )
+    
+    classificacao_indicativa: Mapped[str | None] = mapped_column(
+        String(30),
+        nullable=True,
+    )
+
+    publico_estimado: Mapped[int | None] = mapped_column(
+        Integer,
+        nullable=True,
     )
 
     link_complementar: Mapped[str | None] = mapped_column(
