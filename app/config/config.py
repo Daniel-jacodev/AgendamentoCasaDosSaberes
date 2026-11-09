@@ -7,6 +7,11 @@ load_dotenv(Path(__file__).resolve().parents[2] / '.env')
 
 
 class Settings:
+    cors_origins = [
+        origin.strip().rstrip('/')
+        for origin in getenv('CORS_ORIGINS', 'http://127.0.0.1:3000,http://localhost:3000').split(',')
+        if origin.strip()
+    ]
     db_host = getenv('DB_HOST', 'localhost')
     db_port = int(getenv('DB_PORT', '5432'))
     db_name = getenv('DB_NAME', 'agendamento')

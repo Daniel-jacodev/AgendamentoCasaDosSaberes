@@ -108,3 +108,19 @@ Dados de contato e anexos devem ter acesso restrito e não devem aparecer nas re
 A confirmação é sempre manual (RNG01), não há cobrança (RNG03), e 48 horas é um prazo de referência para retorno (RNG04). Dashboards quantitativos (RF20) estão fora do escopo. Essas definições pendentes não impedem a organização das pastas, mas devem orientar a implementação das respectivas funcionalidades.
 
 Referências técnicas: [organização com APIRouter e dependências](https://fastapi.tiangolo.com/tutorial/bigger-applications/), [schemas de resposta no FastAPI](https://fastapi.tiangolo.com/tutorial/response-model/) e [OpenID Connect no Keycloak](https://www.keycloak.org/securing-apps/oidc-layers).
+
+
+## Frontend e CORS
+
+O frontend chama esta API diretamente, sem proxy. As origens locais padrão são
+`http://127.0.0.1:3000` e `http://localhost:3000`. Para outra porta, Live Server ou
+WordPress, configure `CORS_ORIGINS` no `.env` e reinicie a API:
+
+```dotenv
+CORS_ORIGINS=http://127.0.0.1:3000,http://localhost:3000,https://seusite.com.br
+```
+
+Use apenas origens (protocolo, domínio e porta, sem caminho). O middleware permite
+`GET`, `POST`, `PUT` e `DELETE`, com os cabeçalhos `Authorization` e `Content-Type`,
+e responde ao preflight OPTIONS. A autenticação por Bearer continua obrigatória
+nas rotas protegidas; cookies do WordPress não são utilizados.
