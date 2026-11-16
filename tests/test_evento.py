@@ -7,13 +7,6 @@ from app.models.evento import Evento
 from app.services import auth
 
 
-@pytest.fixture
-def authenticated_headers(monkeypatch):
-    oidc = Mock()
-    oidc.decode_token.return_value = {'sub': 'user-id'}
-    monkeypatch.setattr(auth, 'criar_openid_keycloak', lambda: oidc)
-    return {'Authorization': 'Bearer valid-token'}
-
 
 def test_delete_evento(client, evento, session, authenticated_headers):
     evento_id = evento.id
@@ -352,7 +345,7 @@ def test_criacao_publica_fica_pendente_mesmo_com_token_enviado(client, authentic
     assert response.json()['status'] == 'pendente'
 
 
-@pytest.mark.parametrize('espaco_id', [2, 3, 4])
+@pytest.mark.parametrize('espaco_id', [2, 3, 4, 5])
 def test_eventos_simultaneos_em_espacos_diferentes(client, evento, authenticated_headers, espaco_id):
     payload = client.get('/eventos/').json()['eventos'][0]
     payload['espaco_id'] = espaco_id
@@ -370,7 +363,7 @@ def test_eventos_simultaneos_em_espacos_diferentes(client, evento, authenticated
     assert salvo['espaco_id'] == espaco_id
 
 
-@pytest.mark.parametrize('espaco_id', [None, 0, 5, 'ausente'])
+@pytest.mark.parametrize('espaco_id', [None, 0, 6, 'ausente'])
 def test_espaco_obrigatorio(client, evento, authenticated_headers, espaco_id):
     payload = client.get('/eventos/').json()['eventos'][0]
     if espaco_id == 'ausente':

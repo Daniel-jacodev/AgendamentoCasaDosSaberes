@@ -7,6 +7,9 @@ from sqlalchemy import create_engine, event
 from sqlalchemy.orm import Session
 from sqlalchemy.pool import StaticPool
 
+from unittest.mock import Mock
+from app.services import auth
+
 from app.config.database import get_db, table_registry
 from app.main import app
 from app.models import Evento
@@ -84,3 +87,19 @@ def _mock_db_time(*, model, time=datetime(2025, 5, 8)):
 @pytest.fixture
 def mock_db_time():
     return _mock_db_time
+
+
+@pytest.fixture
+def authenticated_headers(monkeypatch):
+    oidc = Mock()
+    oidc.decode_token.return_value = {"sub": "user-id"}
+
+    monkeypatch.setattr(
+        auth,
+        "criar_openid_keycloak",
+        lambda: oidc,
+    )
+
+    return {
+        "Authorization": "Bearer valid-token"
+    }
