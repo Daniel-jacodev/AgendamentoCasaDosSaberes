@@ -8,7 +8,7 @@ def get(
     db: Session,
     *,
     status_visita: StatusVisita | None = None,
-    ordenar_por_data: bool = False,
+    ordenar_por_data: bool = True,
 ) -> list[Visita]:
     query = select(Visita)
     if status_visita is not None:
