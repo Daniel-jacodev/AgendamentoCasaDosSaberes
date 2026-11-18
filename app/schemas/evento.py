@@ -58,6 +58,22 @@ class EventosResponse(BaseModel):
     eventos: list[EventoResponse]
 
 
+class EventoPublicoResponse(BaseModel):
+    model_config = ConfigDict(from_attributes=True)
+    id: int
+    status: Literal['aceito']
+    titulo: str
+    descricao: str
+    classificacao_indicativa: ClassificacaoIndicativaEnum
+    data_inicio: datetime
+    data_fim: datetime
+    espaco_id: int
+
+
+class EventosPublicosResponse(BaseModel):
+    eventos: list[EventoPublicoResponse]
+
+
 class EventoFilter(BaseModel):
     titulo: str | None = None  # LIKE
     data_inicio_de: datetime | None = None

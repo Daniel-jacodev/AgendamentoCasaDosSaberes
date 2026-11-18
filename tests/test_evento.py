@@ -24,7 +24,7 @@ def test_delete_evento(client, evento, session, authenticated_headers):
     assert response.content == b''
     session.expire_all()
     assert session.get(Evento, evento_id) is None
-    assert client.get('/eventos/').json() == {'eventos': []}
+    assert client.get('/eventos/', headers=authenticated_headers).json() == {'eventos': []}
     assert client.delete(f'/eventos/{evento_id}', headers=authenticated_headers).status_code == HTTPStatus.NOT_FOUND
 
 
@@ -33,19 +33,17 @@ def test_delete_evento_not_found(client, evento, authenticated_headers):
 
     assert response.status_code == HTTPStatus.NOT_FOUND
     assert response.json() == {'detail': 'Evento não encontrado.'}
-    assert len(client.get('/eventos/').json()['eventos']) == 1
+    assert len(client.get('/eventos/', headers=authenticated_headers).json()['eventos']) == 1
 
 
-def test_get_evento_empty(client):
-    response = client.get('/eventos')
+def test_get_evento_empty(client, authenticated_headers):
+    response = client.get('/eventos/', headers=authenticated_headers)
 
     assert response.json() == {'eventos': []}
 
 
-def test_get_evento_populated(client, evento):
-    response = client.get(
-        '/eventos',
-    )
+def test_get_evento_populated(client, evento, authenticated_headers):
+    response = client.get('/eventos/', headers=authenticated_headers)
 
     assert response.json() == {
         'eventos': [
@@ -142,8 +140,13 @@ def test_update_evento_not_found(client, evento, authenticated_headers):
 @pytest.mark.parametrize('method', ['put', 'delete'])
 @pytest.mark.parametrize('authorization', [None, 'Bearer invalid-token'])
 def test_mutacao_evento_exige_login(client, evento, monkeypatch, method, authorization):
+    def decode_token(token, **_):
+        if token == 'valid-token':
+            return {'sub': 'user-id'}
+        raise ValueError('Token invalido')
+
     oidc = Mock()
-    oidc.decode_token.side_effect = ValueError('Token invalido')
+    oidc.decode_token.side_effect = decode_token
     monkeypatch.setattr(auth, 'criar_openid_keycloak', lambda: oidc)
     titulo_original = evento.titulo
     headers = {'Authorization': authorization} if authorization else {}
@@ -159,7 +162,7 @@ def test_mutacao_evento_exige_login(client, evento, monkeypatch, method, authori
 
     assert response.status_code == HTTPStatus.UNAUTHORIZED
     assert response.headers['www-authenticate'] == 'Bearer'
-    eventos = client.get('/eventos/').json()['eventos']
+    eventos = client.get('/eventos/', headers={'Authorization': 'Bearer valid-token'}).json()['eventos']
     assert len(eventos) == 1
     assert eventos[0]['id'] == evento.id
     assert eventos[0]['titulo'] == titulo_original
@@ -177,7 +180,7 @@ def test_mutacao_evento_exige_login(client, evento, monkeypatch, method, authori
         ('2026-10-25T17:00:00Z', '2026-10-25T19:00:00Z'),
     ],
 )
-def test_create_evento_conflitante(client, evento, inicio, fim):
+def test_create_evento_conflitante(client, evento, inicio, fim, authenticated_headers):
     payload = {
         'espaco_id': 1,
         'titulo': 'Outro evento',
@@ -187,7 +190,7 @@ def test_create_evento_conflitante(client, evento, inicio, fim):
     }
     response = client.post('/eventos/', json=payload)
     assert response.status_code == HTTPStatus.CONFLICT
-    assert len(client.get('/eventos/').json()['eventos']) == 1
+    assert len(client.get('/eventos/', headers=authenticated_headers).json()['eventos']) == 1
 
 
 @pytest.mark.parametrize(
@@ -238,13 +241,13 @@ def test_update_evento_conflitante(client, evento, authenticated_headers):
     payload.update(data_inicio='2026-10-25T15:00:00', data_fim='2026-10-25T17:00:00')
     response = client.put(f'/eventos/{evento_id}', json=payload, headers=authenticated_headers)
     assert response.status_code == HTTPStatus.CONFLICT
-    eventos = client.get('/eventos/').json()['eventos']
+    eventos = client.get('/eventos/', headers=authenticated_headers).json()['eventos']
     atualizado = next(item for item in eventos if item['id'] == evento_id)
     assert atualizado['data_inicio'] == '2026-10-25T17:00:00'
 
 
 @pytest.mark.parametrize('celular', [None, '(85) 99999-1234', '9' * 30])
-def test_cadastro_mvp(client, celular):
+def test_cadastro_mvp(client, celular, authenticated_headers):
     payload = {
         'titulo': 'Evento MVP',
         'descricao': 'Descricao do evento MVP.',
@@ -260,11 +263,11 @@ def test_cadastro_mvp(client, celular):
     assert data['status'] == 'pendente'
     assert data['celular'] == celular
     assert data['data_inicio'] == '2026-12-01T14:00:00'
-    assert client.get('/eventos/').json() == {'eventos': [data]}
+    assert client.get('/eventos/', headers=authenticated_headers).json() == {'eventos': [data]}
 
 
 def test_aprovacao_persistida(client, evento, session, authenticated_headers):
-    data = client.get('/eventos/').json()['eventos'][0]
+    data = client.get('/eventos/', headers=authenticated_headers).json()['eventos'][0]
     data.update(status='aceito', celular='(85) 99999-0000')
     response = client.put(f'/eventos/{evento.id}', json=data, headers=authenticated_headers)
     assert response.status_code == HTTPStatus.OK
@@ -273,16 +276,16 @@ def test_aprovacao_persistida(client, evento, session, authenticated_headers):
     session.expire_all()
     assert session.get(Evento, evento.id).status == 'aceito'
     assert session.get(Evento, evento.id).celular == data['celular']
-    assert client.get('/eventos/').json()['eventos'][0]['status'] == 'aceito'
+    assert client.get('/eventos/', headers=authenticated_headers).json()['eventos'][0]['status'] == 'aceito'
     response = client.delete(f'/eventos/{evento.id}', headers=authenticated_headers)
     assert response.status_code == HTTPStatus.NO_CONTENT
     assert response.content == b''
-    assert client.get('/eventos/').json() == {'eventos': []}
+    assert client.get('/eventos/', headers=authenticated_headers).json() == {'eventos': []}
 
 
 @pytest.mark.parametrize('status', ['recusado', 'confirmando', '', None])
 def test_status_invalido(client, evento, authenticated_headers, status):
-    data = client.get('/eventos/').json()['eventos'][0]
+    data = client.get('/eventos/', headers=authenticated_headers).json()['eventos'][0]
     data['status'] = status
     assert client.post('/eventos/', json=data).status_code == HTTPStatus.UNPROCESSABLE_ENTITY
     assert client.put('/eventos/1', json=data, headers=authenticated_headers).status_code == (
@@ -318,12 +321,12 @@ def test_celular_longo(client):
 
 
 @pytest.mark.parametrize('method', ['put', 'delete'])
-def test_aprovacao_recusa_sem_login(client, evento, method):
-    data = client.get('/eventos/').json()['eventos'][0]
+def test_aprovacao_recusa_sem_login(client, evento, method, authenticated_headers):
+    data = client.get('/eventos/', headers=authenticated_headers).json()['eventos'][0]
     data['status'] = 'aceito'
     response = client.request(method, f'/eventos/{evento.id}', json=data)
     assert response.status_code == HTTPStatus.UNAUTHORIZED
-    assert client.get('/eventos/').json()['eventos'][0]['status'] == 'pendente'
+    assert client.get('/eventos/', headers=authenticated_headers).json()['eventos'][0]['status'] == 'pendente'
 
 
 def test_criacao_administrativa_aceita_imediatamente(client, authenticated_headers):
@@ -354,7 +357,7 @@ def test_criacao_publica_fica_pendente_mesmo_com_token_enviado(client, authentic
 
 @pytest.mark.parametrize('espaco_id', [2, 3, 4])
 def test_eventos_simultaneos_em_espacos_diferentes(client, evento, authenticated_headers, espaco_id):
-    payload = client.get('/eventos/').json()['eventos'][0]
+    payload = client.get('/eventos/', headers=authenticated_headers).json()['eventos'][0]
     payload['espaco_id'] = espaco_id
     response = client.post('/eventos/', json=payload)
     assert response.status_code == HTTPStatus.CREATED
@@ -366,13 +369,14 @@ def test_eventos_simultaneos_em_espacos_diferentes(client, evento, authenticated
         client.put(f'/eventos/{evento_id}', json=payload, headers=authenticated_headers).status_code
         == HTTPStatus.CONFLICT
     )
-    salvo = next(item for item in client.get('/eventos/').json()['eventos'] if item['id'] == evento_id)
+    eventos = client.get('/eventos/', headers=authenticated_headers).json()['eventos']
+    salvo = next(item for item in eventos if item['id'] == evento_id)
     assert salvo['espaco_id'] == espaco_id
 
 
 @pytest.mark.parametrize('espaco_id', [None, 0, 5, 'ausente'])
 def test_espaco_obrigatorio(client, evento, authenticated_headers, espaco_id):
-    payload = client.get('/eventos/').json()['eventos'][0]
+    payload = client.get('/eventos/', headers=authenticated_headers).json()['eventos'][0]
     if espaco_id == 'ausente':
         payload.pop('espaco_id')
     else:

@@ -1,3 +1,5 @@
+from typing import Literal
+
 from fastapi import HTTPException, status
 from sqlalchemy import select, text
 from sqlalchemy.orm import Session
@@ -6,10 +8,18 @@ from app.models.evento import Evento
 from app.schemas.evento import EventoCreate, EventoUpdate, EventoWrite
 
 
-def get(db: Session) -> list[Evento]:
-    eventos = db.scalars(select(Evento)).all()
-
-    return eventos
+def get(
+    db: Session,
+    *,
+    status_evento: Literal['pendente', 'aceito'] | None = None,
+    ordenar_por_data: bool = False,
+) -> list[Evento]:
+    query = select(Evento)
+    if status_evento is not None:
+        query = query.where(Evento.status == status_evento)
+    if ordenar_por_data:
+        query = query.order_by(Evento.data_inicio, Evento.id)
+    return list(db.scalars(query))
 
 
 def _bloquear_agenda(db: Session) -> None:

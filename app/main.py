@@ -8,6 +8,7 @@ from app.config.config import settings
 from app.config.database import init_db
 from app.controllers.evento import router as eventos_router
 from app.controllers.usuarios import router as usuarios_router
+from app.controllers.visita import router as visitas_router
 
 
 @asynccontextmanager
@@ -25,3 +26,4 @@ app.add_middleware(
 )
 app.include_router(eventos_router)
 app.include_router(usuarios_router)
+app.include_router(visitas_router)

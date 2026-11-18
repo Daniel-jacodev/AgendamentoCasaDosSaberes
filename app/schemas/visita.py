@@ -1,12 +1,9 @@
 from datetime import datetime
-from enum import Enum
+from typing import Literal
 
 from pydantic import BaseModel, ConfigDict, EmailStr, Field
 
-
-class StatusVisita(str, Enum):
-    PENDENTE = 'pendente'
-    APROVADA = 'aprovada'
+from app.models.visita import StatusVisita
 
 
 class VisitaBase(BaseModel):
@@ -28,3 +25,19 @@ class VisitaResponse(VisitaBase):
     model_config = ConfigDict(from_attributes=True)
     id: int
     status: StatusVisita
+
+
+class VisitasResponse(BaseModel):
+    visitas: list[VisitaResponse]
+
+
+class VisitaPublicaResponse(BaseModel):
+    model_config = ConfigDict(from_attributes=True)
+    id: int
+    status: Literal[StatusVisita.APROVADA]
+    data_inicio: datetime
+    data_fim: datetime
+
+
+class VisitasPublicasResponse(BaseModel):
+    visitas: list[VisitaPublicaResponse]
