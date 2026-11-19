@@ -40,6 +40,23 @@ As consultas retornam `{"visitas": [...]}`.
 | `POST /visitas/` | Retorna `201` com status `pendente` para pedidos públicos ou `aprovada` para cadastros autenticados | Público, com Bearer do Keycloak opcional |
 | `DELETE /visitas/{id}` | Exclui uma visita e retorna `204` | Bearer do Keycloak |
 
+## Exposições e formulário de visita
+
+| Rota | Contrato | Acesso |
+| --- | --- | --- |
+| `GET /exposicoes/` | Retorna `{"exposicoes": [...]}` com as exposições ativas em ordem de sala | Público |
+| `GET /exposicoes/administracao` | Retorna `salas` (cada uma com `id` e `nome`) e `exposicoes` (ativas e pausadas) | Administrador |
+| `PUT /exposicoes/{sala_id}` | Publica ou edita a exposição da sala e retorna o registro salvo | Administrador |
+| `PUT /exposicoes/{sala_id}/status` | Recebe `{"pausada": true}` para pausar ou `{"pausada": false}` para reativar | Administrador |
+| `GET /visitas/formulario` | Retorna a configuração publicada em `{"campos": [...]}` | Público |
+| `PUT /visitas/formulario` | Substitui a lista de perguntas e retorna a configuração salva | Administrador |
+
+Os IDs do editor são `1 = Sala expositiva 1`, `2 = Sala expositiva 2`, `3 = Corredor` e `4 = Varanda`. Cada sala tem uma exposição. O primeiro PUT publica o conteúdo por padrão. O JSON recebe `nome` (até 120 caracteres), `descricao` (até 500, opcional) e `classificacao` (até 40, opcional). A resposta inclui também `sala_id` e `pausada`. Se `pausada` for omitido em uma edição, o status atual é preservado. É possível enviar `pausada` junto com os demais dados para salvar conteúdo e status em uma única operação. Uma sala desconhecida ou uma alteração de status em sala vazia retorna `404`.
+
+O formulário preserva a ordem de `campos` e de `opcoes`. Cada campo tem `id` único e `titulo`. Os demais atributos são `dica`, `opcoes` e as flags `opcional`, `complementar`, `multipla`, `outro` e `email`. Com `opcoes`, o campo é de seleção, com ou sem múltipla escolha. Sem `opcoes`, é de texto. Antes do primeiro salvamento, a API fornece as perguntas padrão do editor. Enviar `{"campos": []}` publica um formulário vazio. A configuração descreve as perguntas exibidas, e o envio das solicitações continua usando o contrato de `POST /visitas/`.
+
+As tabelas são criadas na inicialização da API. Os dados de protótipo já salvos no navegador podem ser enviados pelos PUTs correspondentes. As novas rotas administrativas exigem token Bearer com o papel de realm `administrador` no claim `realm_access.roles`. O arquivo de importação do Keycloak inclui o papel e seu vínculo com o client da API. Em um realm existente, crie o papel, adicione-o ao escopo do client e atribua-o aos usuários responsáveis. Esses usuários devem entrar novamente para obter um token com o papel.
+
 ## Disponibilidade
 
 | Rota pública | Agenda consultada |

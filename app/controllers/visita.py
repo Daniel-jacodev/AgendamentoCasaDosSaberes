@@ -6,6 +6,7 @@ from sqlalchemy.orm import Session
 
 from app.config.database import get_db
 from app.models.visita import StatusVisitaEnum
+from app.schemas.conteudo_visita import FormularioVisitaSchema
 from app.schemas.disponibilidade import DisponibilidadeVisitaResponse
 from app.schemas.visita import (
     VisitaCreate,
@@ -13,13 +14,29 @@ from app.schemas.visita import (
     VisitasPublicasResponse,
     VisitasResponse,
 )
+from app.services import conteudo_visita
 from app.services import visita as visita_service
-from app.services.auth import get_current_user_claims, get_optional_user_claims
+from app.services.auth import exigir_administrador, get_current_user_claims, get_optional_user_claims
 from app.services.disponibilidade import consultar_visitas
 
 router = APIRouter(prefix='/visitas', tags=['Visitas'])
 
 T_Session = Annotated[Session, Depends(get_db)]
+
+
+@router.get('/formulario', response_model=FormularioVisitaSchema, response_model_exclude_defaults=True)
+def consultar_formulario_visita(db: T_Session):
+    return conteudo_visita.consultar_formulario(db)
+
+
+@router.put(
+    '/formulario',
+    response_model=FormularioVisitaSchema,
+    response_model_exclude_defaults=True,
+    dependencies=[Depends(exigir_administrador)],
+)
+def salvar_formulario_visita(formulario: FormularioVisitaSchema, db: T_Session):
+    return conteudo_visita.salvar_formulario(db, formulario)
 
 
 @router.get('/disponibilidade', response_model=DisponibilidadeVisitaResponse)

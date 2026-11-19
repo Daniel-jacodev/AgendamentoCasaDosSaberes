@@ -57,6 +57,22 @@
       }
     }
   ],
+  "roles": {
+    "realm": [
+      {
+        "name": "administrador",
+        "description": "Gerencia exposições e a configuração do formulário de visita"
+      }
+    ]
+  },
+  "scopeMappings": [
+    {
+      "client": "${KEYCLOAK_CLIENT_ID}",
+      "roles": [
+        "administrador"
+      ]
+    }
+  ],
   "clientScopeMappings": {
     "realm-management": [
       {
