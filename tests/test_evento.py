@@ -7,14 +7,6 @@ from app.models.evento import Evento
 from app.services import auth
 
 
-@pytest.fixture
-def authenticated_headers(monkeypatch):
-    oidc = Mock()
-    oidc.decode_token.return_value = {'sub': 'user-id'}
-    monkeypatch.setattr(auth, 'criar_openid_keycloak', lambda: oidc)
-    return {'Authorization': 'Bearer valid-token'}
-
-
 def test_delete_evento(client, evento, session, authenticated_headers):
     evento_id = evento.id
 
@@ -59,6 +51,13 @@ def test_get_evento_populated(client, evento, authenticated_headers):
                 'id': 1,
                 'status': 'pendente',
                 'celular': None,
+                'email': None,
+                'entidade': None,
+                'segmento': None,
+                'pauta': None,
+                'periodicidade': None,
+                'link_complementar': None,
+                'arquivo_pdf_id': None,
             },
         ]
     }
@@ -334,12 +333,18 @@ def test_criacao_administrativa_aceita_imediatamente(client, authenticated_heade
         'espaco_id': 1,
         'titulo': 'Evento administrativo',
         'descricao': 'Criado por administrador logado.',
+        'email': 'agendamento@example.org',
         'data_inicio': '2026-12-01T14:00:00',
         'data_fim': '2026-12-01T16:00:00',
     }
     response = client.post('/eventos/', json=payload, headers=authenticated_headers)
     assert response.status_code == HTTPStatus.CREATED
     assert response.json()['status'] == 'aceito'
+    consulta = client.get('/eventos/aceitos')
+    assert consulta.status_code == HTTPStatus.OK
+    (evento_publico,) = consulta.json()['eventos']
+    assert evento_publico['classificacao_indicativa'] is None
+    assert 'email' not in evento_publico
 
 
 def test_criacao_publica_fica_pendente_mesmo_com_token_enviado(client, authenticated_headers):
@@ -355,7 +360,7 @@ def test_criacao_publica_fica_pendente_mesmo_com_token_enviado(client, authentic
     assert response.json()['status'] == 'pendente'
 
 
-@pytest.mark.parametrize('espaco_id', [2, 3, 4])
+@pytest.mark.parametrize('espaco_id', [2, 3, 4, 5])
 def test_eventos_simultaneos_em_espacos_diferentes(client, evento, authenticated_headers, espaco_id):
     payload = client.get('/eventos/', headers=authenticated_headers).json()['eventos'][0]
     payload['espaco_id'] = espaco_id
@@ -374,7 +379,7 @@ def test_eventos_simultaneos_em_espacos_diferentes(client, evento, authenticated
     assert salvo['espaco_id'] == espaco_id
 
 
-@pytest.mark.parametrize('espaco_id', [None, 0, 5, 'ausente'])
+@pytest.mark.parametrize('espaco_id', [None, 0, 6, 'ausente'])
 def test_espaco_obrigatorio(client, evento, authenticated_headers, espaco_id):
     payload = client.get('/eventos/', headers=authenticated_headers).json()['eventos'][0]
     if espaco_id == 'ausente':

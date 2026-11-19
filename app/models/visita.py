@@ -8,18 +8,18 @@ from app.config.database import Base
 
 
 class NaturezaInstituicaoEnum(str, enum.Enum):
-    PUBLICA = "publica"
-    PRIVADA = "privada"
-    OUTRA = "outra"
+    PUBLICA = 'publica'
+    PRIVADA = 'privada'
+    OUTRA = 'outra'
 
 
 class StatusVisitaEnum(str, enum.Enum):
-    PENDENTE = "pendente"
-    APROVADA = "aprovada"
+    PENDENTE = 'pendente'
+    APROVADA = 'aprovada'
 
 
 class Visita(Base):
-    __tablename__ = "visitas"
+    __tablename__ = 'visitas'
     __table_args__ = (CheckConstraint("status IN ('pendente', 'aprovada')", name='ck_visitas_status'),)
 
     id: Mapped[int] = mapped_column(

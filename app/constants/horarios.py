@@ -1,9 +1,9 @@
 from datetime import time
 
-INICIO_EXPEDIENTE = time(8,0)
+INICIO_EXPEDIENTE = time(8, 0)
 FIM_EXPEDIENTE = time(18, 0)
 
-INICIO_INTERVALO = time(12,0)
+INICIO_INTERVALO = time(12, 0)
 FIM_INTERVALO = time(13, 30)
 
 DURACAO_MINIMA_HORAS = 2

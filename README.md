@@ -25,7 +25,7 @@ O frontend público deve usar `GET /eventos/aceitos` para carregar a programaç�
 
 A aprovação de uma solicitação pública envia o evento completo para `PUT /eventos/{id}` com `status="aceito"`. A resposta e a listagem retornam o status persistido. No painel administrativo, eventos criados por uma pessoa autenticada já são aceitos; solicitações públicas continuam sujeitas a aprovação ou exclusão. Os únicos status são `pendente` e `aceito`. A recusa usa `DELETE /eventos/{id}`, com `204` sem corpo. PUT e DELETE exigem token do Keycloak. A confirmação por pop-up acontece no frontend antes da chamada; a API não mantém estados de confirmação ou histórico de recusas.
 
-Espaços: `1 = Auditório`, `2 = Quintal`, `3 = Salas Expositivas`, `4 = Varanda`; o espaço é obrigatório. Consulte os [comandos de inicialização](scripts/README.md).
+O espaço é obrigatório. Os IDs são `1 = Auditório`, `2 = Quintal`, `3 = Salas Expositivas`, `4 = Varanda` e `5 = Área Externa`. Consulte os [comandos de inicialização](scripts/README.md).
 
 ## Consultas de visitas mediadas
 
@@ -37,6 +37,8 @@ As consultas retornam `{"visitas": [...]}`.
 | `GET /visitas/pendentes` | Somente visitas com status `pendente` | Bearer do Keycloak |
 | `GET /visitas/aceitas` | Somente visitas com status `aprovada`, com ID e horários | Público |
 | `GET /visitas/ordenadas` | Todas as visitas por data de início crescente, com desempate pelo ID | Bearer do Keycloak |
+| `POST /visitas/` | Cria uma visita com status `aprovada` e retorna `201` | Bearer do Keycloak |
+| `DELETE /visitas/{id}` | Exclui uma visita e retorna `204` | Bearer do Keycloak |
 
 ## Horários dos eventos
 

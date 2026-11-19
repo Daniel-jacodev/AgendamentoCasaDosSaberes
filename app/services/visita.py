@@ -2,6 +2,7 @@ from sqlalchemy import select
 from sqlalchemy.orm import Session
 
 from app.models.visita import StatusVisitaEnum, Visita
+from app.schemas.visita import VisitaCreate
 
 
 def get(
@@ -16,3 +17,34 @@ def get(
     if ordenar_por_data:
         query = query.order_by(Visita.data_inicio, Visita.id)
     return list(db.scalars(query))
+
+
+def create(
+    db: Session,
+    dados: VisitaCreate,
+) -> Visita:
+    valores = dados.model_dump()
+    valores['status'] = StatusVisitaEnum.APROVADA.value
+
+    visita = Visita(**valores)
+
+    db.add(visita)
+    db.commit()
+    db.refresh(visita)
+
+    return visita
+
+
+def delete(
+    db: Session,
+    visita_id: int,
+) -> bool:
+    visita = db.get(Visita, visita_id)
+
+    if visita is None:
+        return False
+
+    db.delete(visita)
+    db.commit()
+
+    return True

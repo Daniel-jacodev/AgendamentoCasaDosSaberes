@@ -1,35 +1,35 @@
 from datetime import datetime
 
 from app.constants.horarios import (
-  INICIO_EXPEDIENTE,
-  FIM_EXPEDIENTE,
-  INICIO_INTERVALO,
-  FIM_INTERVALO,
-  DURACAO_MINIMA_HORAS,
-  DURACAO_MAXIMA_HORAS,
+    DURACAO_MAXIMA_HORAS,
+    DURACAO_MINIMA_HORAS,
+    FIM_EXPEDIENTE,
+    FIM_INTERVALO,
+    INICIO_EXPEDIENTE,
+    INICIO_INTERVALO,
 )
+
 
 def horario_valido(inicio: datetime, fim: datetime) -> bool:
     duracao_horas = (fim - inicio).total_seconds() / 3600
-    
+
     if not DURACAO_MINIMA_HORAS <= duracao_horas <= DURACAO_MAXIMA_HORAS:
-      return False
-    
+        return False
+
     inicio_hora = inicio.time()
     fim_hora = fim.time()
-    
+
     if inicio_hora < INICIO_EXPEDIENTE or fim_hora > FIM_EXPEDIENTE:
-      return False
-    
-    conflito_intervalo = (
-      inicio_hora < FIM_INTERVALO and fim_hora > INICIO_INTERVALO
-    )
-    
+        return False
+
+    conflito_intervalo = inicio_hora < FIM_INTERVALO and fim_hora > INICIO_INTERVALO
+
     if conflito_intervalo:
-      return False
-    
+        return False
+
     return True
-  
+
+
 def horario_evento_valido(
     inicio: datetime,
     fim: datetime,

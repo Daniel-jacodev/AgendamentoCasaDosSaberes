@@ -1,5 +1,6 @@
 from contextlib import contextmanager
 from datetime import datetime
+from unittest.mock import Mock
 
 import pytest
 from fastapi.testclient import TestClient
@@ -10,6 +11,7 @@ from sqlalchemy.pool import StaticPool
 from app.config.database import get_db, table_registry
 from app.main import app
 from app.models import Evento
+from app.services import auth
 
 
 @pytest.fixture
@@ -84,3 +86,17 @@ def _mock_db_time(*, model, time=datetime(2025, 5, 8)):
 @pytest.fixture
 def mock_db_time():
     return _mock_db_time
+
+
+@pytest.fixture
+def authenticated_headers(monkeypatch):
+    oidc = Mock()
+    oidc.decode_token.return_value = {'sub': 'user-id'}
+
+    monkeypatch.setattr(
+        auth,
+        'criar_openid_keycloak',
+        lambda: oidc,
+    )
+
+    return {'Authorization': 'Bearer valid-token'}

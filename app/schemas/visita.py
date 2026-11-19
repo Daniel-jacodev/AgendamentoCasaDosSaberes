@@ -94,26 +94,21 @@ class VisitaBase(BaseModel):
 
 
 class VisitaCreate(VisitaBase):
-
-    @model_validator(mode="after")
+    @model_validator(mode='after')
     def validar_periodo(self) -> Self:
         if self.data_fim <= self.data_inicio:
-            raise ValueError(
-                "A data de fim deve ser posterior à data de início."
-            )
+            raise ValueError('A data de fim deve ser posterior à data de início.')
 
         return self
 
-    @model_validator(mode="after")
+    @model_validator(mode='after')
     def validar_pcd(self) -> Self:
         if not self.possui_pcd:
             self.tipos_deficiencia = None
             self.quantidade_pcd = None
 
         elif self.quantidade_pcd is None or self.quantidade_pcd <= 0:
-            raise ValueError(
-                "Informe a quantidade de pessoas com deficiência."
-            )
+            raise ValueError('Informe a quantidade de pessoas com deficiência.')
 
         return self
 
