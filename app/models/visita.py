@@ -1,7 +1,7 @@
 import enum
 from datetime import datetime
 
-from sqlalchemy import Boolean, DateTime, Enum, Integer, String, Text
+from sqlalchemy import Boolean, CheckConstraint, DateTime, Enum, Integer, String, Text
 from sqlalchemy.orm import Mapped, mapped_column
 
 from app.config.database import Base
@@ -20,6 +20,7 @@ class StatusVisitaEnum(str, enum.Enum):
 
 class Visita(Base):
     __tablename__ = "visitas"
+    __table_args__ = (CheckConstraint("status IN ('pendente', 'aprovada')", name='ck_visitas_status'),)
 
     id: Mapped[int] = mapped_column(
         Integer,
@@ -27,10 +28,11 @@ class Visita(Base):
         index=True,
     )
 
-    status: Mapped[StatusVisitaEnum] = mapped_column(
-        Enum(StatusVisitaEnum),
+    status: Mapped[str] = mapped_column(
+        String(8),
         nullable=False,
-        default=StatusVisitaEnum.PENDENTE,
+        default=StatusVisitaEnum.PENDENTE.value,
+        server_default=StatusVisitaEnum.PENDENTE.value,
     )
 
     nome_responsavel: Mapped[str] = mapped_column(
@@ -58,9 +60,9 @@ class Visita(Base):
         nullable=True,
     )
 
-    instituicao: Mapped[str] = mapped_column(
+    instituicao: Mapped[str | None] = mapped_column(
         String(150),
-        nullable=False,
+        nullable=True,
     )
 
     natureza_instituicao: Mapped[NaturezaInstituicaoEnum | None] = mapped_column(

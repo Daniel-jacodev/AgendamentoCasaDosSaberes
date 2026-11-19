@@ -1,5 +1,5 @@
 from datetime import datetime
-from typing import Self
+from typing import Literal, Self
 
 from pydantic import (
     BaseModel,
@@ -38,7 +38,8 @@ class VisitaBase(BaseModel):
         max_length=150,
     )
 
-    instituicao: str = Field(
+    instituicao: str | None = Field(
+        default=None,
         min_length=2,
         max_length=150,
     )
@@ -122,3 +123,20 @@ class VisitaResponse(VisitaBase):
 
     id: int
     status: StatusVisitaEnum
+
+
+class VisitasResponse(BaseModel):
+    visitas: list[VisitaResponse]
+
+
+class VisitaPublicaResponse(BaseModel):
+    model_config = ConfigDict(from_attributes=True)
+
+    id: int
+    status: Literal[StatusVisitaEnum.APROVADA]
+    data_inicio: datetime
+    data_fim: datetime
+
+
+class VisitasPublicasResponse(BaseModel):
+    visitas: list[VisitaPublicaResponse]

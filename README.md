@@ -10,11 +10,33 @@ A API possui rotas de eventos e autenticação com Keycloak: `POST /usuarios` (c
 
 ## Contrato de eventos do MVP
 
-`GET /eventos/` retorna `{"eventos": [...]}`. `POST /eventos/` é público: sem sessão, retorna o evento com status `pendente`; com token válido, identifica o administrador e cria o evento já como `aceito`. O status no JSON de entrada não altera essa regra. O campo `celular` é opcional (até 30 caracteres). Enviar `status="aceito"` no cadastro público mantém o evento pendente; a aprovação exige autenticação.
+As consultas retornam `{"eventos": [...]}`.
 
-A aprovação de uma solicitação pública envia o evento completo para `PUT /eventos/{id}` com `status="aceito"`. A resposta e a listagem retornam o status persistido. No painel administrativo, eventos criados por uma pessoa autenticada já são aceitos; solicitações públicas continuam sujeitas a aprovação ou exclusão. Os únicos status são `pendente` e `aceito`. A recusa usa `DELETE /eventos/{id}`, com `204` sem corpo. GET e POST são públicos; PUT e DELETE exigem token do Keycloak. A confirmação por pop-up acontece no frontend antes da chamada; a API não mantém estados de confirmação ou histórico de recusas.
+| Rota | Resultado | Acesso |
+| --- | --- | --- |
+| `GET /eventos/` | Todos os eventos | Bearer do Keycloak |
+| `GET /eventos/pendentes` | Solicitações com status `pendente` | Bearer do Keycloak |
+| `GET /eventos/aceitos` | Programação confirmada, com os campos públicos do evento | Público |
+| `GET /eventos/ordenados` | Todos os eventos por data de início crescente, com desempate pelo ID | Bearer do Keycloak |
+
+O frontend público deve usar `GET /eventos/aceitos` para carregar a programação. A resposta inclui ID, status, título, descrição, classificação indicativa, datas e ID do espaço.
+
+`POST /eventos/` é público: sem sessão, retorna o evento com status `pendente`; com token válido, identifica o administrador e cria o evento já como `aceito`. O status no JSON de entrada não altera essa regra. O campo `celular` é opcional (até 30 caracteres). Enviar `status="aceito"` no cadastro público mantém o evento pendente; a aprovação exige autenticação.
+
+A aprovação de uma solicitação pública envia o evento completo para `PUT /eventos/{id}` com `status="aceito"`. A resposta e a listagem retornam o status persistido. No painel administrativo, eventos criados por uma pessoa autenticada já são aceitos; solicitações públicas continuam sujeitas a aprovação ou exclusão. Os únicos status são `pendente` e `aceito`. A recusa usa `DELETE /eventos/{id}`, com `204` sem corpo. PUT e DELETE exigem token do Keycloak. A confirmação por pop-up acontece no frontend antes da chamada; a API não mantém estados de confirmação ou histórico de recusas.
 
 Espaços: `1 = Auditório`, `2 = Quintal`, `3 = Salas Expositivas`, `4 = Varanda`; o espaço é obrigatório. Consulte os [comandos de inicialização](scripts/README.md).
+
+## Consultas de visitas mediadas
+
+As consultas retornam `{"visitas": [...]}`.
+
+| Rota | Resultado | Acesso |
+| --- | --- | --- |
+| `GET /visitas/` | Todas as visitas mediadas | Bearer do Keycloak |
+| `GET /visitas/pendentes` | Somente visitas com status `pendente` | Bearer do Keycloak |
+| `GET /visitas/aceitas` | Somente visitas com status `aprovada`, com ID e horários | Público |
+| `GET /visitas/ordenadas` | Todas as visitas por data de início crescente, com desempate pelo ID | Bearer do Keycloak |
 
 ## Horários dos eventos
 

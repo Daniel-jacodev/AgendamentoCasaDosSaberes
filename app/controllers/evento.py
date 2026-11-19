@@ -4,7 +4,7 @@ from fastapi import APIRouter, Depends, HTTPException, Response, status
 from sqlalchemy.orm import Session
 
 from app.config.database import get_db
-from app.schemas.evento import EventoCreate, EventoResponse, EventosResponse, EventoUpdate
+from app.schemas.evento import EventoCreate, EventoResponse, EventosPublicosResponse, EventosResponse, EventoUpdate
 from app.services import evento as eventoService
 from app.services.auth import get_current_user_claims, get_optional_user_claims
 
@@ -13,9 +13,24 @@ router = APIRouter(prefix='/eventos', tags=['Eventos'])
 T_Session = Annotated[Session, Depends(get_db)]
 
 
-@router.get('/', response_model=EventosResponse, status_code=status.HTTP_200_OK)
+@router.get('/', response_model=EventosResponse, dependencies=[Depends(get_current_user_claims)])
 def get_evento(db: T_Session):
     return {'eventos': eventoService.get(db)}
+
+
+@router.get('/pendentes', response_model=EventosResponse, dependencies=[Depends(get_current_user_claims)])
+def get_eventos_pendentes(db: T_Session):
+    return {'eventos': eventoService.get(db, status_evento='pendente')}
+
+
+@router.get('/aceitos', response_model=EventosPublicosResponse)
+def get_eventos_aceitos(db: T_Session):
+    return {'eventos': eventoService.get(db, status_evento='aceito')}
+
+
+@router.get('/ordenados', response_model=EventosResponse, dependencies=[Depends(get_current_user_claims)])
+def get_eventos_ordenados(db: T_Session):
+    return {'eventos': eventoService.get(db, ordenar_por_data=True)}
 
 
 @router.post('/', response_model=EventoResponse, status_code=status.HTTP_201_CREATED)
