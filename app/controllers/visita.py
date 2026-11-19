@@ -14,7 +14,7 @@ from app.schemas.visita import (
     VisitasResponse,
 )
 from app.services import visita as visita_service
-from app.services.auth import get_current_user_claims
+from app.services.auth import get_current_user_claims, get_optional_user_claims
 from app.services.disponibilidade import consultar_visitas
 
 router = APIRouter(prefix='/visitas', tags=['Visitas'])
@@ -51,15 +51,17 @@ def get_visitas_ordenadas(db: T_Session):
     '/',
     response_model=VisitaResponse,
     status_code=status.HTTP_201_CREATED,
-    dependencies=[Depends(get_current_user_claims)],
 )
 def create_visita(
     visita: VisitaCreate,
     db: T_Session,
+    claims: Annotated[dict | None, Depends(get_optional_user_claims)],
 ):
+    status_visita = StatusVisitaEnum.PENDENTE if claims is None else StatusVisitaEnum.APROVADA
     return visita_service.create(
         db,
         visita,
+        status_visita,
     )
 
 

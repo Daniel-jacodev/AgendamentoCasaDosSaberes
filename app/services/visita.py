@@ -24,6 +24,7 @@ def get(
 def create(
     db: Session,
     dados: VisitaCreate,
+    status_visita: StatusVisitaEnum,
 ) -> Visita:
     bloquear_agenda(db, Visita)
     conflito = select(Visita.id).where(*sobreposicao(Visita, dados.data_inicio, dados.data_fim))
@@ -31,7 +32,7 @@ def create(
         raise HTTPException(status.HTTP_409_CONFLICT, 'Horário indisponível para visita. Escolha outro horário.')
 
     valores = dados.model_dump()
-    valores['status'] = StatusVisitaEnum.APROVADA.value
+    valores['status'] = status_visita.value
 
     visita = Visita(**valores)
 

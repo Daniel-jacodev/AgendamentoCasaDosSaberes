@@ -37,7 +37,7 @@ As consultas retornam `{"visitas": [...]}`.
 | `GET /visitas/pendentes` | Somente visitas com status `pendente` | Bearer do Keycloak |
 | `GET /visitas/aceitas` | Somente visitas com status `aprovada`, com ID e horários | Público |
 | `GET /visitas/ordenadas` | Todas as visitas por data de início crescente, com desempate pelo ID | Bearer do Keycloak |
-| `POST /visitas/` | Cria uma visita com status `aprovada` e retorna `201` | Bearer do Keycloak |
+| `POST /visitas/` | Retorna `201` com status `pendente` para pedidos públicos ou `aprovada` para cadastros autenticados | Público, com Bearer do Keycloak opcional |
 | `DELETE /visitas/{id}` | Exclui uma visita e retorna `204` | Bearer do Keycloak |
 
 ## Disponibilidade

@@ -49,10 +49,12 @@ def test_criar_visita_admin(client, authenticated_headers):
 def test_criar_visita_sem_autenticacao(client):
     response = client.post(
         '/visitas/',
-        json=payload_visita(),
+        json={**payload_visita(), 'status': 'aprovada'},
     )
 
-    assert response.status_code == HTTPStatus.UNAUTHORIZED
+    assert response.status_code == HTTPStatus.CREATED
+    assert response.json()['status'] == 'pendente'
+    assert client.get('/visitas/aceitas').json() == {'visitas': []}
 
 
 def test_deletar_visita_admin(client, authenticated_headers):
