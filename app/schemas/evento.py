@@ -83,6 +83,9 @@ class EventoBase(BaseModel):
     )
 
 
+    aceitou_termos: bool = False
+
+
 class EventoWrite(EventoBase):
     @field_validator('data_inicio', 'data_fim')
     @classmethod

@@ -43,7 +43,11 @@ def _atualizar_tabela_eventos(connection: Connection) -> None:
 
     columns = {column['name']: column for column in inspector.get_columns('eventos')}
     alteracoes = []
-    for nome, tipo in (('link_complementar', 'VARCHAR(500)'), ('arquivo_pdf_id', 'INTEGER')):
+    for nome, tipo in (
+        ('link_complementar', 'VARCHAR(500)'),
+        ('arquivo_pdf_id', 'INTEGER'),
+        ('aceitou_termos', 'BOOLEAN NOT NULL DEFAULT FALSE'),
+    ):
         if nome not in columns:
             alteracoes.append(f'ADD COLUMN IF NOT EXISTS {nome} {tipo}')
 

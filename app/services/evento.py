@@ -75,7 +75,10 @@ def update(db: Session, id: int, dados: EventoUpdate) -> Evento | None:
 
     _validar_disponibilidade(db, dados, evento.id)
 
-    for key, value in dados.model_dump().items():
+    valores = dados.model_dump()
+    if 'aceitou_termos' not in dados.model_fields_set:
+        del valores['aceitou_termos']
+    for key, value in valores.items():
         setattr(evento, key, value)
 
     db.commit()

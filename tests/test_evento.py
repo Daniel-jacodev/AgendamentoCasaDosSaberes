@@ -58,6 +58,7 @@ def test_get_evento_populated(client, evento, authenticated_headers):
                 'periodicidade': None,
                 'link_complementar': None,
                 'arquivo_pdf_id': None,
+                'aceitou_termos': False,
             },
         ]
     }
@@ -73,6 +74,7 @@ def test_create_evento(client):
         'espaco_id': 1,
         'responsavel': 'Coordenação Educativa',
         'publico_estimado': 25,
+        'aceitou_termos': True,
     }
 
     response = client.post('/eventos', json=payload)
@@ -89,6 +91,7 @@ def test_create_evento(client):
     assert data['espaco_id'] == payload['espaco_id']
     assert data['responsavel'] == payload['responsavel']
     assert data['publico_estimado'] == payload['publico_estimado']
+    assert data['aceitou_termos'] is True
 
 
 def test_update_evento(client, evento, authenticated_headers):

@@ -1,7 +1,7 @@
 import enum
 from datetime import datetime
 
-from sqlalchemy import CheckConstraint, DateTime, Enum, Integer, String, Text
+from sqlalchemy import Boolean, CheckConstraint, DateTime, Enum, Integer, String, Text, false
 from sqlalchemy.orm import Mapped, mapped_column
 
 from app.config.database import Base
@@ -139,4 +139,11 @@ class Evento(Base):
     arquivo_pdf_id: Mapped[int | None] = mapped_column(
         Integer,
         nullable=True,
+    )
+
+    aceitou_termos: Mapped[bool] = mapped_column(
+        Boolean,
+        nullable=False,
+        default=False,
+        server_default=false(),
     )
