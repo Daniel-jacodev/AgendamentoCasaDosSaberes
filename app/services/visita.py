@@ -1,8 +1,10 @@
+from fastapi import HTTPException, status
 from sqlalchemy import select
 from sqlalchemy.orm import Session
 
 from app.models.visita import StatusVisitaEnum, Visita
 from app.schemas.visita import VisitaCreate
+from app.services.disponibilidade import bloquear_agenda, sobreposicao
 
 
 def get(
@@ -23,6 +25,11 @@ def create(
     db: Session,
     dados: VisitaCreate,
 ) -> Visita:
+    bloquear_agenda(db, Visita)
+    conflito = select(Visita.id).where(*sobreposicao(Visita, dados.data_inicio, dados.data_fim))
+    if db.scalar(conflito.limit(1)) is not None:
+        raise HTTPException(status.HTTP_409_CONFLICT, 'Horário indisponível para visita. Escolha outro horário.')
+
     valores = dados.model_dump()
     valores['status'] = StatusVisitaEnum.APROVADA.value
 

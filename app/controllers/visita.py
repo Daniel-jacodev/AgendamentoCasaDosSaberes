@@ -1,3 +1,4 @@
+from datetime import date
 from typing import Annotated
 
 from fastapi import APIRouter, Depends, HTTPException, Response, status
@@ -5,6 +6,7 @@ from sqlalchemy.orm import Session
 
 from app.config.database import get_db
 from app.models.visita import StatusVisitaEnum
+from app.schemas.disponibilidade import DisponibilidadeVisitaResponse
 from app.schemas.visita import (
     VisitaCreate,
     VisitaResponse,
@@ -13,10 +15,16 @@ from app.schemas.visita import (
 )
 from app.services import visita as visita_service
 from app.services.auth import get_current_user_claims
+from app.services.disponibilidade import consultar_visitas
 
 router = APIRouter(prefix='/visitas', tags=['Visitas'])
 
 T_Session = Annotated[Session, Depends(get_db)]
+
+
+@router.get('/disponibilidade', response_model=DisponibilidadeVisitaResponse)
+def get_disponibilidade_visitas(db: T_Session, data: date):
+    return consultar_visitas(db, data)
 
 
 @router.get('/', response_model=VisitasResponse, dependencies=[Depends(get_current_user_claims)])

@@ -1,5 +1,7 @@
 from enum import Enum
 
+ESPACO_AREA_EXTERNA_ID = 5
+
 
 class Espaco(str, Enum):
     AUDITORIO = 'auditorio'

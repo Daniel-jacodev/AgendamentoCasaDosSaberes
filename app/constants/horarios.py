@@ -2,6 +2,7 @@ from datetime import time
 
 INICIO_EXPEDIENTE = time(8, 0)
 FIM_EXPEDIENTE = time(18, 0)
+FIM_EXPEDIENTE_NOTURNO = time(21, 0)
 
 INICIO_INTERVALO = time(12, 0)
 FIM_INTERVALO = time(13, 30)

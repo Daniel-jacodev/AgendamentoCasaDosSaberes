@@ -1,6 +1,5 @@
 from datetime import datetime
 from typing import Literal, Self
-from zoneinfo import ZoneInfo
 
 from pydantic import (
     BaseModel,
@@ -17,6 +16,7 @@ from app.models.evento import (
     PeriodicidadeEnum,
     SegmentoEnum,
 )
+from app.services.horario_service import horario_local
 
 
 class EventoBase(BaseModel):
@@ -82,7 +82,6 @@ class EventoBase(BaseModel):
         gt=0,
     )
 
-
     aceitou_termos: bool = False
 
 
@@ -90,11 +89,7 @@ class EventoWrite(EventoBase):
     @field_validator('data_inicio', 'data_fim')
     @classmethod
     def normalizar_horario(cls, valor: datetime) -> datetime:
-
-        if valor.tzinfo is not None:
-            return valor.astimezone(ZoneInfo('America/Fortaleza')).replace(tzinfo=None)
-
-        return valor
+        return horario_local(valor)
 
     @model_validator(mode='after')
     def validar_periodo(self) -> Self:

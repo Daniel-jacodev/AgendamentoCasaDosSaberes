@@ -6,6 +6,7 @@ from fastapi.middleware.cors import CORSMiddleware
 
 from app.config.config import settings
 from app.config.database import init_db
+from app.controllers.disponibilidade import router as disponibilidade_router
 from app.controllers.evento import router as eventos_router
 from app.controllers.usuarios import router as usuarios_router
 from app.controllers.visita import router as visitas_router
@@ -25,5 +26,6 @@ app.add_middleware(
     allow_headers=['Authorization', 'Content-Type'],
 )
 app.include_router(eventos_router)
+app.include_router(disponibilidade_router)
 app.include_router(usuarios_router)
 app.include_router(visitas_router)

@@ -1,5 +1,8 @@
 from http import HTTPStatus
 
+from app.models.visita import StatusVisitaEnum, Visita
+from app.schemas.visita import VisitaCreate
+
 
 def payload_visita():
     return {
@@ -100,3 +103,47 @@ def test_criar_visita_periodo_invalido(client, authenticated_headers):
     )
 
     assert response.status_code == HTTPStatus.UNPROCESSABLE_ENTITY
+
+
+def test_disponibilidade_e_conflito_de_visita_pendente(client, session, authenticated_headers):
+    dados = VisitaCreate.model_validate(payload_visita())
+    session.add(Visita(**dados.model_dump(), status=StatusVisitaEnum.PENDENTE.value))
+    session.commit()
+
+    consulta = client.get('/visitas/disponibilidade', params={'data': '2026-11-20'})
+    assert consulta.status_code == HTTPStatus.OK
+    assert consulta.json() == {
+        'data': '2026-11-20',
+        'bloqueios': [{'data_inicio': '2026-11-20T14:00:00', 'data_fim': '2026-11-20T16:00:00'}],
+        'horarios_reservaveis': [
+            {'data_inicio': '2026-11-20T08:00:00', 'data_fim': '2026-11-20T12:00:00'},
+            {'data_inicio': '2026-11-20T13:30:00', 'data_fim': '2026-11-20T14:00:00'},
+            {'data_inicio': '2026-11-20T16:00:00', 'data_fim': '2026-11-20T18:00:00'},
+        ],
+    }
+
+    payload = payload_visita()
+    payload.update(data_inicio='2026-11-20T18:00:00Z', data_fim='2026-11-20T20:00:00Z')
+    conflito = client.post('/visitas/', json=payload, headers=authenticated_headers)
+    assert conflito.status_code == HTTPStatus.CONFLICT
+    assert conflito.json() == {'detail': 'Horário indisponível para visita. Escolha outro horário.'}
+
+    evento = client.post(
+        '/eventos/',
+        json={
+            'titulo': 'Evento paralelo',
+            'descricao': 'Descrição do evento paralelo.',
+            'espaco_id': 1,
+            'data_inicio': '2026-11-20T16:00:00',
+            'data_fim': '2026-11-20T18:00:00',
+        },
+    )
+    assert evento.status_code == HTTPStatus.CREATED
+
+    payload.update(data_inicio='2026-11-20T19:00:00Z', data_fim='2026-11-20T18:00:00-03:00')
+    consecutiva = client.post('/visitas/', json=payload, headers=authenticated_headers)
+    assert consecutiva.status_code == HTTPStatus.CREATED
+    assert consecutiva.json()['data_inicio'] == '2026-11-20T16:00:00'
+    assert client.post('/visitas/', json=payload, headers=authenticated_headers).status_code == HTTPStatus.CONFLICT
+    consultas = client.get('/visitas/', headers=authenticated_headers)
+    assert [visita['status'] for visita in consultas.json()['visitas']] == ['pendente', 'aprovada']

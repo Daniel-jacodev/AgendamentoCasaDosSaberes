@@ -1,11 +1,12 @@
 from typing import Literal
 
 from fastapi import HTTPException, status
-from sqlalchemy import select, text
+from sqlalchemy import select
 from sqlalchemy.orm import Session
 
 from app.models.evento import Evento
 from app.schemas.evento import EventoCreate, EventoUpdate, EventoWrite
+from app.services.disponibilidade import bloquear_agenda, sobreposicao
 
 
 def get(
@@ -22,18 +23,10 @@ def get(
     return list(db.scalars(query))
 
 
-def _bloquear_agenda(db: Session) -> None:
-    # Serializa a verificacao e a gravacao, inclusive quando a agenda esta vazia.
-    # O lock e liberado ao encerrar a transacao (commit/rollback).
-    if db.get_bind().dialect.name == 'postgresql':
-        db.execute(text('LOCK TABLE eventos IN SHARE ROW EXCLUSIVE MODE'))
-
-
 def _validar_disponibilidade(db: Session, dados: EventoWrite, evento_id: int | None = None) -> None:
     query = select(Evento.id).where(
         Evento.espaco_id == dados.espaco_id,
-        Evento.data_inicio < dados.data_fim,
-        Evento.data_fim > dados.data_inicio,
+        *sobreposicao(Evento, dados.data_inicio, dados.data_fim),
     )
     if evento_id is not None:
         query = query.where(Evento.id != evento_id)
@@ -45,7 +38,7 @@ def _validar_disponibilidade(db: Session, dados: EventoWrite, evento_id: int | N
 
 
 def create(db: Session, dados: EventoCreate, status_evento: str = 'pendente') -> Evento:
-    _bloquear_agenda(db)
+    bloquear_agenda(db, Evento)
     _validar_disponibilidade(db, dados)
     valores = dados.model_dump()
     valores['status'] = status_evento
@@ -67,7 +60,7 @@ def delete(db: Session, evento_id: int) -> bool:
 
 
 def update(db: Session, id: int, dados: EventoUpdate) -> Evento | None:
-    _bloquear_agenda(db)
+    bloquear_agenda(db, Evento)
     evento = db.scalar(select(Evento).where(Evento.id == id))
 
     if not evento:

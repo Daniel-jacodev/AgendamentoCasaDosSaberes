@@ -40,11 +40,24 @@ As consultas retornam `{"visitas": [...]}`.
 | `POST /visitas/` | Cria uma visita com status `aprovada` e retorna `201` | Bearer do Keycloak |
 | `DELETE /visitas/{id}` | Exclui uma visita e retorna `204` | Bearer do Keycloak |
 
-## Horários dos eventos
+## Disponibilidade
+
+| Rota pública | Agenda consultada |
+| --- | --- |
+| `GET /disponibilidade?espaco_id=1&data=2026-11-20` | Eventos do espaço escolhido |
+| `GET /visitas/disponibilidade?data=2026-11-20` | Visitas mediadas |
+
+As consultas retornam `horarios_reservaveis` e `bloqueios`, ambos com intervalos no formato `{"data_inicio": "...", "data_fim": "..."}`, em horário local de Fortaleza. Os bloqueios incluem solicitações pendentes e agendamentos confirmados. A API recorta os bloqueios à data consultada, consolida intervalos sobrepostos ou contíguos e retorna apenas seus horários.
+
+As janelas públicas vão das 8h às 12h e das 13h30 às 18h. Para a Área Externa (`espaco_id=5`), o turno é das 18h às 21h. Cada janela indica um intervalo livre dentro do qual o usuário pode escolher início e fim. Para espaços, a consulta omite janelas com menos de duas horas e informa os limites de duração de duas a três horas para a seleção no calendário.
+
+## Conflitos na gravação
 
 Criação e alteração recusam períodos que se sobrepõem a outro evento no mesmo espaço, retornando `409` com `detail` explicando o conflito. Eventos em espaços diferentes podem ocorrer simultaneamente. Por exemplo, se existe um evento das 14h às 16h, outro no mesmo espaço das 15h às 17h é recusado; um evento a partir das 16h é permitido. Na alteração, o próprio evento é desconsiderado na verificação.
 
 O fim deve ser posterior ao início; períodos inválidos retornam `422`. Datas sem fuso representam o horário de Fortaleza; datas com offset são convertidas para esse horário antes de salvar e comparar. A API usa um [lock transacional do PostgreSQL](https://www.postgresql.org/docs/17/explicit-locking.html) para serializar a verificação e a gravação e impedir reservas simultâneas conflitantes. Eventos que já estavam cadastrados são preservados.
+
+O cadastro de uma visita retorna `409` se o horário se sobrepuser a outra visita pendente ou aprovada. Horários consecutivos são permitidos e visitas podem ocorrer durante eventos. A gravação de visitas usa a mesma proteção transacional na sua própria agenda.
 
 ## Iniciar os serviços
 
@@ -123,7 +136,7 @@ Dados de contato e anexos devem ter acesso restrito e não devem aparecer nas re
 
 ## Decisões pendentes do produto
 
-- **Disponibilidade:** horários de funcionamento, duração de visitas e conflitos entre visita, espaço e uso total da Casa.
+- **Disponibilidade:** duração de visitas e regras para reservas que ocupem toda a Casa.
 - **Espaços:** catálogo, imagens e fonte dos metadados, preservando o escopo sem cadastro administrativo próprio de espaços.
 - **Publicação:** como atividades confirmadas entram na programação pública.
 - **Notificação:** retorno manual ou e-mail automático (RF19).
