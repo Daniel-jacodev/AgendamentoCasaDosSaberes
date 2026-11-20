@@ -20,6 +20,30 @@ from app.services.horario_service import horario_local
 
 
 class EventoBase(BaseModel):
+    titulo: str
+    descricao: str
+    data_inicio: datetime
+    data_fim: datetime
+
+    espaco_id: int = Field(
+        description=('1 = Auditório; 2 = Quintal; 3 = Salas Expositivas; 4 = Varanda; 5 = Área Externa'),
+    )
+
+    responsavel: str | None = None
+    celular: str | None = None
+    email: str | None = None
+    entidade: str | None = None
+    segmento: SegmentoEnum | None = None
+    pauta: PautaEnum | None = None
+    periodicidade: PeriodicidadeEnum | None = None
+    classificacao_indicativa: ClassificacaoIndicativaEnum | None = None
+    publico_estimado: int | None = None
+    link_complementar: str | None = None
+    arquivo_pdf_id: int | None = None
+    aceitou_termos: bool = False
+
+
+class EventoWrite(EventoBase):
     titulo: str = Field(
         min_length=3,
         max_length=150,
@@ -29,9 +53,6 @@ class EventoBase(BaseModel):
         min_length=10,
         max_length=2000,
     )
-
-    data_inicio: datetime
-    data_fim: datetime
 
     espaco_id: int = Field(
         ge=1,
@@ -59,14 +80,6 @@ class EventoBase(BaseModel):
         max_length=150,
     )
 
-    segmento: SegmentoEnum | None = None
-
-    pauta: PautaEnum | None = None
-
-    periodicidade: PeriodicidadeEnum | None = None
-
-    classificacao_indicativa: ClassificacaoIndicativaEnum | None = None
-
     publico_estimado: int | None = Field(
         default=None,
         gt=0,
@@ -82,10 +95,11 @@ class EventoBase(BaseModel):
         gt=0,
     )
 
-    aceitou_termos: bool = False
+    segmento: [SegmentoEnum] = Field(
+        default = None,
+        max_length = 3,
+    )
 
-
-class EventoWrite(EventoBase):
     @field_validator('data_inicio', 'data_fim')
     @classmethod
     def normalizar_horario(cls, valor: datetime) -> datetime:
@@ -115,7 +129,6 @@ class EventoResponse(EventoBase):
 
     id: int
     status: Literal['pendente', 'aceito'] = 'pendente'
-    email: str | None = None
 
 
 class EventosResponse(BaseModel):

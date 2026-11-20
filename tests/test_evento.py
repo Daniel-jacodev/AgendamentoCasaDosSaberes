@@ -64,6 +64,28 @@ def test_get_evento_populated(client, evento, authenticated_headers):
     }
 
 
+@pytest.mark.parametrize('rota', ['/eventos/', '/eventos/pendentes', '/eventos/ordenados'])
+def test_listar_evento_com_responsavel_legado(client, evento, session, authenticated_headers, rota):
+    evento.responsavel = 'oi'
+    session.commit()
+
+    response = client.get(rota, headers=authenticated_headers)
+
+    assert response.status_code == HTTPStatus.OK
+    (dados,) = response.json()['eventos']
+    assert dados['responsavel'] == 'oi'
+
+
+def test_gravar_evento_com_responsavel_curto(client, evento, authenticated_headers):
+    payload = client.get('/eventos/', headers=authenticated_headers).json()['eventos'][0]
+    payload['responsavel'] = 'oi'
+
+    assert client.post('/eventos/', json=payload).status_code == HTTPStatus.UNPROCESSABLE_ENTITY
+    assert client.put(f'/eventos/{evento.id}', json=payload, headers=authenticated_headers).status_code == (
+        HTTPStatus.UNPROCESSABLE_ENTITY
+    )
+
+
 def test_create_evento(client):
     payload = {
         'titulo': 'Oficina de Flauta Doce',
