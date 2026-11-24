@@ -19,6 +19,14 @@ from app.models.evento import (
 from app.services.horario_service import horario_local
 
 
+StatusEvento = Literal[
+    "pendente",
+    "aceito",
+    "negado",
+    "cancelado",
+]
+
+
 class EventoBase(BaseModel):
     titulo: str
     descricao: str
@@ -26,17 +34,22 @@ class EventoBase(BaseModel):
     data_fim: datetime
 
     espaco_id: int = Field(
-        description=('1 = Auditório; 2 = Quintal; 3 = Salas Expositivas; 4 = Varanda; 5 = Área Externa'),
+        description=(
+            "1 = Auditório; 2 = Quintal; 3 = Salas Expositivas; "
+            "4 = Varanda; 5 = Área Externa"
+        ),
     )
 
     responsavel: str | None = None
     celular: str | None = None
     email: str | None = None
     entidade: str | None = None
+
     segmento: SegmentoEnum | None = None
     pauta: PautaEnum | None = None
     periodicidade: PeriodicidadeEnum | None = None
     classificacao_indicativa: ClassificacaoIndicativaEnum | None = None
+
     publico_estimado: int | None = None
     link_complementar: str | None = None
     arquivo_pdf_id: int | None = None
@@ -57,7 +70,10 @@ class EventoWrite(EventoBase):
     espaco_id: int = Field(
         ge=1,
         le=5,
-        description=('1 = Auditório; 2 = Quintal; 3 = Salas Expositivas; 4 = Varanda; 5 = Área Externa'),
+        description=(
+            "1 = Auditório; 2 = Quintal; 3 = Salas Expositivas; "
+            "4 = Varanda; 5 = Área Externa"
+        ),
     )
 
     responsavel: str | None = Field(
@@ -95,52 +111,69 @@ class EventoWrite(EventoBase):
         gt=0,
     )
 
-    segmento: [SegmentoEnum] = Field(
-        default = None,
-        max_length = 3,
-    )
+    segmento: SegmentoEnum | None = None
 
-    @field_validator('data_inicio', 'data_fim')
+    @field_validator("data_inicio", "data_fim")
     @classmethod
-    def normalizar_horario(cls, valor: datetime) -> datetime:
+    def normalizar_horario(
+        cls,
+        valor: datetime,
+    ) -> datetime:
         return horario_local(valor)
 
-    @model_validator(mode='after')
+    @model_validator(mode="after")
     def validar_periodo(self) -> Self:
         if self.data_fim <= self.data_inicio:
-            raise ValueError('A data de fim deve ser posterior à data de início.')
+            raise ValueError(
+                "A data de fim deve ser posterior à data de início."
+            )
 
         return self
 
 
 class EventoCreate(EventoWrite):
-    status: Literal['pendente', 'aceito'] = Field(
-        default='pendente',
+    status: StatusEvento = Field(
+        default="pendente",
         exclude=True,
     )
 
 
 class EventoUpdate(EventoWrite):
-    status: Literal['pendente', 'aceito'] = 'pendente'
+    status: StatusEvento = "pendente"
+
+
+class EventoStatusUpdate(BaseModel):
+    status: Literal[
+        "aceito",
+        "negado",
+        "cancelado",
+    ]
 
 
 class EventoResponse(EventoBase):
-    model_config = ConfigDict(from_attributes=True)
+    model_config = ConfigDict(
+        from_attributes=True,
+    )
 
     id: int
-    status: Literal['pendente', 'aceito'] = 'pendente'
+    status: StatusEvento = "pendente"
 
 
 class EventosResponse(BaseModel):
-    model_config = ConfigDict(from_attributes=True)
+    model_config = ConfigDict(
+        from_attributes=True,
+    )
 
     eventos: list[EventoResponse]
 
 
 class EventoPublicoResponse(BaseModel):
-    model_config = ConfigDict(from_attributes=True)
+    model_config = ConfigDict(
+        from_attributes=True,
+    )
+
     id: int
-    status: Literal['aceito']
+    status: Literal["aceito"]
     titulo: str
     descricao: str
     classificacao_indicativa: ClassificacaoIndicativaEnum | None
@@ -181,24 +214,24 @@ class EventoFilter(BaseModel):
     offset: int = Field(
         default=0,
         ge=0,
-        description='Quantos registros pular',
+        description="Quantos registros pular",
     )
 
     limit: int = Field(
         default=50,
         ge=1,
         le=200,
-        description='Máximo de registros retornados',
+        description="Máximo de registros retornados",
     )
 
     order_by: Literal[
-        'id',
-        'titulo',
-        'data_inicio',
-        'data_fim',
-    ] = 'data_inicio'
+        "id",
+        "titulo",
+        "data_inicio",
+        "data_fim",
+    ] = "data_inicio"
 
     order: Literal[
-        'asc',
-        'desc',
-    ] = 'asc'
+        "asc",
+        "desc",
+    ] = "asc"

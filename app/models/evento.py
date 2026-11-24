@@ -1,51 +1,67 @@
 import enum
 from datetime import datetime
 
-from sqlalchemy import Boolean, CheckConstraint, DateTime, Enum, Integer, String, Text, false
+from sqlalchemy import (
+    Boolean,
+    CheckConstraint,
+    DateTime,
+    Enum,
+    Integer,
+    String,
+    Text,
+    false,
+)
 from sqlalchemy.orm import Mapped, mapped_column
 
 from app.config.database import Base
 
 
 class SegmentoEnum(str, enum.Enum):
-    TEATRO = 'Teatro'
-    MUSICA = 'Música'
-    ARTES_VISUAIS = 'Artes visuais'
-    AUDIOVISUAL = 'Audiovisual'
-    GESTAO_CULTURAL = 'Gestão Cultural'
-    DANCA = 'Dança'
-    OUTRO = 'Outro'
+    TEATRO = "Teatro"
+    MUSICA = "Música"
+    ARTES_VISUAIS = "Artes visuais"
+    AUDIOVISUAL = "Audiovisual"
+    GESTAO_CULTURAL = "Gestão Cultural"
+    DANCA = "Dança"
+    OUTRO = "Outro"
 
 
 class PautaEnum(str, enum.Enum):
-    RACIAL = 'Racial'
-    SOCIAL = 'Social'
-    INDIGENA = 'Indígena'
-    PCD = 'Pessoas com deficiência'
-    COMUNIDADE_LGBTQIAP_PLUS = 'Comunidade LGBTQIAP+'
-    OUTRO = 'Outro'
+    RACIAL = "Racial"
+    SOCIAL = "Social"
+    INDIGENA = "Indígena"
+    PCD = "Pessoas com deficiência"
+    COMUNIDADE_LGBTQIAP_PLUS = "Comunidade LGBTQIAP+"
+    OUTRO = "Outro"
 
 
 class PeriodicidadeEnum(str, enum.Enum):
-    SEMANAL = 'Semanal'
-    MENSAL = 'Mensal'
-    SOMENTE_NA_DATA_ESCOLHIDA = 'Somente na data escolhida'
+    SEMANAL = "Semanal"
+    MENSAL = "Mensal"
+    SOMENTE_NA_DATA_ESCOLHIDA = "Somente na data escolhida"
 
 
 class ClassificacaoIndicativaEnum(str, enum.Enum):
-    LIVRE = 'Livre'
-    DEZ_ANOS = '10 anos'
-    DOZE_ANOS = '12 anos'
-    CATORZE_ANOS = '14 anos'
-    DEZESSEIS_ANOS = '16 anos'
-    DEZOITO_ANOS = '18 anos'
+    LIVRE = "Livre"
+    DEZ_ANOS = "10 anos"
+    DOZE_ANOS = "12 anos"
+    CATORZE_ANOS = "14 anos"
+    DEZESSEIS_ANOS = "16 anos"
+    DEZOITO_ANOS = "18 anos"
 
 
 class Evento(Base):
-    __tablename__ = 'eventos'
+    __tablename__ = "eventos"
+
     __table_args__ = (
-        CheckConstraint("status IN ('pendente', 'aceito')", name='ck_eventos_status'),
-        CheckConstraint('length(celular) <= 30', name='ck_eventos_celular'),
+        CheckConstraint(
+            "status IN ('pendente', 'aceito', 'negado', 'cancelado')",
+            name="ck_eventos_status",
+        ),
+        CheckConstraint(
+            "length(celular) <= 30",
+            name="ck_eventos_celular",
+        ),
     )
 
     id: Mapped[int] = mapped_column(
@@ -55,10 +71,10 @@ class Evento(Base):
     )
 
     status: Mapped[str] = mapped_column(
-        String(8),
+        String(20),
         nullable=False,
-        default='pendente',
-        server_default='pendente',
+        default="pendente",
+        server_default="pendente",
     )
 
     titulo: Mapped[str] = mapped_column(
