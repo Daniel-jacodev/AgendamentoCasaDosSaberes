@@ -8,6 +8,7 @@ dependencies = [
     "psycopg[binary]>=3.2,<4",
     "python-keycloak>=5,<8",
     "python-dotenv>=1,<2",
+    "python-multipart>=0.0.32",
     "email-validator>=2,<3",
     "fastapi[standard]>=0.143.2",
     "pytest-asyncio>=1.4.0",

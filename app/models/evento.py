@@ -6,6 +6,7 @@ from sqlalchemy import (
     CheckConstraint,
     DateTime,
     Enum,
+    ForeignKey,
     Integer,
     String,
     Text,
@@ -156,6 +157,7 @@ class Evento(Base):
 
     arquivo_pdf_id: Mapped[int | None] = mapped_column(
         Integer,
+        ForeignKey('arquivos_pdf.id', name='fk_eventos_arquivo_pdf', ondelete='SET NULL'),
         nullable=True,
     )
 

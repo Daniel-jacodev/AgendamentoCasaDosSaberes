@@ -17,6 +17,7 @@ dependencies = [
     { name = "pytest-asyncio" },
     { name = "python-dotenv" },
     { name = "python-keycloak" },
+    { name = "python-multipart" },
     { name = "reportlab" },
     { name = "sqlalchemy" },
 ]
@@ -39,6 +40,7 @@ requires-dist = [
     { name = "pytest-asyncio", specifier = ">=1.4.0" },
     { name = "python-dotenv", specifier = ">=1,<2" },
     { name = "python-keycloak", specifier = ">=5,<8" },
+    { name = "python-multipart", specifier = ">=0.0.32" },
     { name = "reportlab", specifier = ">=4,<5" },
     { name = "sqlalchemy", specifier = ">=2.1.4" },
 ]

@@ -3,6 +3,7 @@ from collections.abc import Generator
 from sqlalchemy import URL, CheckConstraint, Table, create_engine, inspect
 from sqlalchemy.dialects.postgresql import ENUM
 from sqlalchemy.engine import Connection
+from sqlalchemy.engine.reflection import Inspector
 from sqlalchemy.orm import DeclarativeBase, Session, sessionmaker
 from sqlalchemy.schema import CreateColumn
 
@@ -37,12 +38,7 @@ def get_db() -> Generator[Session, None, None]:
         db.close()
 
 
-def _atualizar_tabela_eventos(connection: Connection, tabela: Table) -> None:
-    inspector = inspect(connection)
-    if not inspector.has_table('eventos'):
-        return
-
-    columns = {column['name']: column for column in inspector.get_columns('eventos')}
+def _restricoes_eventos(inspector: Inspector, tabela: Table) -> list[str]:
     alteracoes = []
     restricoes = {item['name']: item['sqltext'] for item in inspector.get_check_constraints('eventos')}
     status_anterior = restricoes.get('ck_eventos_status', '')
@@ -56,6 +52,24 @@ def _atualizar_tabela_eventos(connection: Connection, tabela: Table) -> None:
             'DROP CONSTRAINT IF EXISTS ck_eventos_status',
             f'ADD CONSTRAINT {restricao.name} CHECK ({restricao.sqltext})',
         ])
+    if not any(
+        chave['constrained_columns'] == ['arquivo_pdf_id'] and chave['referred_table'] == 'arquivos_pdf'
+        for chave in inspector.get_foreign_keys('eventos')
+    ):
+        alteracoes.append(
+            'ADD CONSTRAINT fk_eventos_arquivo_pdf FOREIGN KEY (arquivo_pdf_id) '
+            'REFERENCES arquivos_pdf(id) ON DELETE SET NULL NOT VALID'
+        )
+    return alteracoes
+
+
+def _atualizar_tabela_eventos(connection: Connection, tabela: Table) -> None:
+    inspector = inspect(connection)
+    if not inspector.has_table('eventos'):
+        return
+
+    columns = {column['name']: column for column in inspector.get_columns('eventos')}
+    alteracoes = []
     for coluna in tabela.columns:
         existente = columns.get(coluna.name)
         if existente is None:
@@ -89,6 +103,7 @@ def _atualizar_tabela_eventos(connection: Connection, tabela: Table) -> None:
             END
         """)
 
+    alteracoes.extend(_restricoes_eventos(inspector, tabela))
     if alteracoes:
         connection.exec_driver_sql('ALTER TABLE eventos ' + ', '.join(alteracoes))
 
@@ -101,5 +116,6 @@ def init_db() -> None:
         if connection.dialect.name == 'postgresql':
             # Serializa a migração e a criação de tipos entre inicializações simultâneas.
             connection.exec_driver_sql("SELECT pg_advisory_xact_lock(hashtext('agendamento:init_db'))")
-            _atualizar_tabela_eventos(connection, Base.metadata.tables['eventos'])
         Base.metadata.create_all(bind=connection)
+        if connection.dialect.name == 'postgresql':
+            _atualizar_tabela_eventos(connection, Base.metadata.tables['eventos'])

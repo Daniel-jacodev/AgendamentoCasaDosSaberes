@@ -26,6 +26,8 @@ def agenda(session):
         ('Arte & Memória <UFC>', datetime(2026, 11, 24, 23, 59, 59, 999999), 'aceito', None, 100),
         ('Sem estimativa', datetime(2026, 11, 24, 9), 'aceito', PautaEnum.SOCIAL, None),
         ('Em avaliação', datetime(2026, 11, 24, 13), 'pendente', PautaEnum.RACIAL, 300),
+        ('Cancelado', datetime(2026, 11, 24, 15), 'cancelado', None, 500),
+        ('Negado', datetime(2026, 11, 24, 17), 'negado', None, 500),
         ('Antes do período', datetime(2026, 11, 22, 23), 'aceito', None, 900),
         ('Depois do período', datetime(2026, 11, 25), 'aceito', None, 800),
     ):

@@ -1,10 +1,54 @@
 from http import HTTPStatus
+from io import BytesIO
+from json import dumps
+from pathlib import Path
 from unittest.mock import Mock
 
 import pytest
+from reportlab.pdfgen.canvas import Canvas
 
+from app.models.arquivo import ArquivoPDF
 from app.models.evento import Evento
 from app.services import auth
+from app.services import evento as evento_service
+
+
+def test_cadastro_multipart_salva_pdf_privado(client, session, tmp_path, monkeypatch):
+    monkeypatch.setattr(evento_service, 'PASTA_PDFS', tmp_path)
+    dados = {
+        'titulo': 'Mostra cultural',
+        'descricao': 'Uma mostra aberta ao público.',
+        'espaco_id': 1,
+        'data_inicio': '2026-11-20T14:00:00',
+        'data_fim': '2026-11-20T16:00:00',
+    }
+    pdf = BytesIO()
+    canvas = Canvas(pdf)
+    canvas.drawString(50, 100, 'Portfólio')
+    canvas.save()
+
+    resposta = client.post(
+        '/eventos/', data={'dados': dumps(dados)}, files={'arquivo': ('mostra.pdf', pdf.getvalue(), 'application/pdf')}
+    )
+
+    assert resposta.status_code == HTTPStatus.CREATED
+    registro = session.get(ArquivoPDF, resposta.json()['arquivo_pdf_id'])
+    arquivo = Path(registro.caminho_local)
+    assert arquivo.parent == tmp_path
+    assert arquivo.read_bytes() == pdf.getvalue()
+
+
+def test_cancelamento_libera_horario_e_reativacao_respeita_conflito(client, evento, authenticated_headers):
+    rota = f'/eventos/{evento.id}/status'
+    cancelado = client.patch(rota, json={'status': 'cancelado'}, headers=authenticated_headers)
+    assert cancelado.status_code == HTTPStatus.OK
+    assert cancelado.json()['status'] == 'cancelado'
+    assert client.get('/eventos/').json() == {'eventos': []}
+
+    reserva = client.post('/eventos/', json=cancelado.json())
+    assert reserva.status_code == HTTPStatus.CREATED
+    reativacao = client.patch(rota, json={'status': 'aceito'}, headers=authenticated_headers)
+    assert reativacao.status_code == HTTPStatus.CONFLICT
 
 
 def test_delete_evento(client, evento, session, authenticated_headers):

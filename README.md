@@ -14,7 +14,7 @@ As consultas retornam `{"eventos": [...]}`.
 
 | Rota | Resultado | Acesso |
 | --- | --- | --- |
-| `GET /eventos/` | Todos os eventos | Bearer do Keycloak |
+| `GET /eventos/` | Programação confirmada para o público ou todos os eventos com sessão | Bearer do Keycloak opcional |
 | `GET /eventos/pendentes` | Solicitações com status `pendente` | Bearer do Keycloak |
 | `GET /eventos/aceitos` | Programação confirmada, com os campos públicos do evento | Público |
 | `GET /eventos/ordenados` | Todos os eventos por data de início crescente, com desempate pelo ID | Bearer do Keycloak |
@@ -23,7 +23,9 @@ O frontend público deve usar `GET /eventos/aceitos` para carregar a programaç�
 
 `POST /eventos/` é público: sem sessão, retorna o evento com status `pendente`; com token válido, identifica o administrador e cria o evento já como `aceito`. O status no JSON de entrada não altera essa regra. O campo `celular` é opcional (até 30 caracteres). Enviar `status="aceito"` no cadastro público mantém o evento pendente; a aprovação exige autenticação.
 
-A aprovação de uma solicitação pública envia o evento completo para `PUT /eventos/{id}` com `status="aceito"`. A resposta e a listagem retornam o status persistido. No painel administrativo, eventos criados por uma pessoa autenticada já são aceitos; solicitações públicas continuam sujeitas a aprovação ou exclusão. Os únicos status são `pendente` e `aceito`. A recusa usa `DELETE /eventos/{id}`, com `204` sem corpo. PUT e DELETE exigem token do Keycloak. A confirmação por pop-up acontece no frontend antes da chamada; a API não mantém estados de confirmação ou histórico de recusas.
+`POST /eventos/` aceita JSON ou `multipart/form-data`. No formulário multipart, envie o JSON como texto no campo `dados` e, opcionalmente, um PDF de até 30 MB no campo `arquivo`. O anexo é salvo em `storage/private/`, e a resposta autenticada de consulta inclui `arquivo_pdf_id`.
+
+`PATCH /eventos/{id}/status` recebe `{"status": "aceito"}`, `{"status": "negado"}` ou `{"status": "cancelado"}`. A edição completa via `PUT /eventos/{id}` também pode atualizar o status. Eventos negados e cancelados liberam o horário e ficam fora dos totais de confirmados e pendentes do relatório. `DELETE /eventos/{id}` exclui o evento e retorna `204`. PATCH, PUT e DELETE exigem token do Keycloak.
 
 O espaço é obrigatório. Os IDs são `1 = Auditório`, `2 = Quintal`, `3 = Salas Expositivas`, `4 = Varanda` e `5 = Área Externa`. Consulte os [comandos de inicialização](scripts/README.md).
 
@@ -183,6 +185,6 @@ CORS_ORIGINS=http://127.0.0.1:3000,http://localhost:3000,https://seusite.com.br
 ```
 
 Use apenas origens (protocolo, domínio e porta, sem caminho). O middleware permite
-`GET`, `POST`, `PUT` e `DELETE`, com os cabeçalhos `Authorization` e `Content-Type`,
+`GET`, `POST`, `PUT`, `PATCH` e `DELETE`, com os cabeçalhos `Authorization` e `Content-Type`,
 e responde ao preflight OPTIONS. A autenticação por Bearer continua obrigatória
 nas rotas protegidas; cookies do WordPress não são utilizados.

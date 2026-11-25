@@ -4,10 +4,15 @@ from fastapi import (
     APIRouter,
     Depends,
     HTTPException,
+    Request,
     Response,
     status,
 )
+from fastapi.concurrency import run_in_threadpool
+from fastapi.exceptions import RequestValidationError
+from pydantic import ValidationError
 from sqlalchemy.orm import Session
+from starlette.datastructures import UploadFile
 
 from app.config.database import get_db
 from app.schemas.evento import (
@@ -114,25 +119,57 @@ def get_eventos_ordenados(
     '/',
     response_model=EventoResponse,
     status_code=status.HTTP_201_CREATED,
+    openapi_extra={
+        'requestBody': {
+            'required': True,
+            'content': {
+                'application/json': {'schema': {'$ref': '#/components/schemas/EventoUpdate'}},
+                'multipart/form-data': {
+                    'schema': {
+                        'type': 'object',
+                        'required': ['dados'],
+                        'properties': {
+                            'dados': {'type': 'string', 'description': 'JSON com os dados do evento.'},
+                            'arquivo': {'type': 'string', 'format': 'binary'},
+                        },
+                    },
+                },
+            },
+        },
+    },
 )
-def create_evento(
-    evento: EventoCreate,
+async def create_evento(
+    request: Request,
     db: T_Session,
     claims: Annotated[
         dict | None,
         Depends(get_optional_user_claims),
     ],
 ):
-    if claims is not None:
-        status_evento = 'aceito'
-    else:
-        status_evento = 'pendente'
+    status_evento = 'aceito' if claims is not None else 'pendente'
+    content_type = request.headers.get('content-type', '').split(';', 1)[0].strip().lower()
+    if content_type == 'multipart/form-data':
+        async with request.form(max_files=1, max_fields=1) as formulario:
+            dados = formulario.get('dados')
+            arquivo = formulario.get('arquivo')
+            if not isinstance(dados, str) or (arquivo is not None and not isinstance(arquivo, UploadFile)):
+                raise HTTPException(422, 'Envie o JSON em "dados" e, opcionalmente, o PDF em "arquivo".')
+            evento = _validar_dados_evento(dados)
+            return await run_in_threadpool(eventoService.create, db, evento, status_evento, arquivo)
 
-    return eventoService.create(
-        db,
-        evento,
-        status_evento,
-    )
+    evento = _validar_dados_evento(await request.body())
+    return await run_in_threadpool(eventoService.create, db, evento, status_evento)
+
+
+def _validar_dados_evento(dados: str | bytes) -> EventoCreate:
+    try:
+        return EventoCreate.model_validate_json(dados)
+    except ValidationError as exc:
+        erros = [
+            {**erro, 'loc': ('body', *erro['loc'])}
+            for erro in exc.errors(include_url=False, include_context=False, include_input=False)
+        ]
+        raise RequestValidationError(erros) from exc
 
 
 @router.put(
