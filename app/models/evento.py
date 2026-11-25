@@ -1,7 +1,7 @@
 import enum
 from datetime import datetime
 
-from sqlalchemy import Boolean, CheckConstraint, DateTime, Enum, Integer, String, Text, false
+from sqlalchemy import Boolean, CheckConstraint, DateTime, Enum, Integer, String, Text, false, ForeignKey
 from sqlalchemy.orm import Mapped, mapped_column
 
 from app.config.database import Base
@@ -138,6 +138,7 @@ class Evento(Base):
 
     arquivo_pdf_id: Mapped[int | None] = mapped_column(
         Integer,
+        ForeignKey('arquivos_pdf.id', ondelete="SET NULL"), # Adicionado ForeignKey
         nullable=True,
     )
 

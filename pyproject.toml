@@ -12,6 +12,7 @@ dependencies = [
     "fastapi[standard]>=0.143.2",
     "pytest-asyncio>=1.4.0",
     "sqlalchemy>=2.1.4",
+    "python-multipart>=0.0.32",
 ]
 
 [dependency-groups]

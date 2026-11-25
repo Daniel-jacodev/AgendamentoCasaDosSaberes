@@ -95,9 +95,8 @@ class EventoWrite(EventoBase):
         gt=0,
     )
 
-    segmento: [SegmentoEnum] = Field(
-        default = None,
-        max_length = 3,
+    segmento: SegmentoEnum | None = Field(
+        default = None
     )
 
     @field_validator('data_inicio', 'data_fim')

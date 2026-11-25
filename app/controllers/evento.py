@@ -1,6 +1,9 @@
+import json
+
 from typing import Annotated
 
-from fastapi import APIRouter, Depends, HTTPException, Response, status
+from fastapi import APIRouter, Depends, File, Form, HTTPException, Response, UploadFile, status
+from pydantic import ValidationError
 from sqlalchemy.orm import Session
 
 from app.config.database import get_db
@@ -35,16 +38,27 @@ def get_eventos_ordenados(db: T_Session):
 
 @router.post('/', response_model=EventoResponse, status_code=status.HTTP_201_CREATED)
 def create_evento(
-    evento: EventoCreate,
     db: T_Session,
     claims: Annotated[dict | None, Depends(get_optional_user_claims)],
+    dados: Annotated[str, Form(description='JSON correspondente ao schema EventoCreate')],
+    arquivo: Annotated[UploadFile | None, File()] = None,
 ):
-    if claims is not None:
-        status_evento = 'aceito'
-    else:
-        status_evento = 'pendente'
+  try:
+    payload_dict = json.loads(dados)
+    evento = EventoCreate.model_validate(payload_dict)
+  except json.JSONDecodeError:
+    raise HTTPException(
+        status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
+        detail='O campo "dados" deve ser um JSON válido.',
+    )
+  except ValidationError as exc:
+    raise HTTPException(
+        status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
+        detail=exc.errors(),
+    )
 
-    return eventoService.create(db, evento, status_evento)
+  status_evento = 'aceito' if claims is not None else 'pendente'
+  return eventoService.create(db, evento, status_evento, arquivo=arquivo)
 
 
 @router.put(

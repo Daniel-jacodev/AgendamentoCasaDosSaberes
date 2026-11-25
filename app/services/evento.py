@@ -1,9 +1,12 @@
+import os
+import uuid
 from typing import Literal
 
-from fastapi import HTTPException, status
+from fastapi import HTTPException, UploadFile, status
 from sqlalchemy import select
 from sqlalchemy.orm import Session
 
+from app.models.arquivo import ArquivoPDF
 from app.models.evento import Evento
 from app.schemas.evento import EventoCreate, EventoUpdate, EventoWrite
 from app.services.disponibilidade import bloquear_agenda, sobreposicao
@@ -37,7 +40,38 @@ def _validar_disponibilidade(db: Session, dados: EventoWrite, evento_id: int | N
         )
 
 
-def create(db: Session, dados: EventoCreate, status_evento: str = 'pendente') -> Evento:
+def create(
+    db: Session, 
+    dados: EventoCreate, 
+    status_evento: str = 'pendente',
+    arquivo: UploadFile | None = None
+) -> Evento:
+    if arquivo:
+        if arquivo.content_type != 'application/pdf':
+            raise HTTPException(status.HTTP_400_BAD_REQUEST, 'Apenas arquivos PDF são permitidos.')
+
+        conteudo = arquivo.file.read()
+        tamanho = len(conteudo)
+        if tamanho > 30 * 1024 * 1024:
+            raise HTTPException(status.HTTP_400_BAD_REQUEST, 'O arquivo excede o limite permitido de 30MB.')
+        UPLOAD_DIR = 'uploads/pdfs'
+        os.makedirs(UPLOAD_DIR, exist_ok=True)
+        extensao = arquivo.filename.split('.')[-1]
+        nome_unico = f"{uuid.uuid4()}.{extensao}"
+        caminho_completo = os.path.join(UPLOAD_DIR, nome_unico)
+
+        with open(caminho_completo, 'wb') as f:
+            f.write(conteudo)
+
+        novo_arquivo = ArquivoPDF(
+            nome_original=arquivo.filename,
+            tamanho_bytes=tamanho,
+            content_type=arquivo.content_type,
+            caminho_local=caminho_completo
+        )
+        db.add(novo_arquivo)
+        db.flush()
+        dados.arquivo_pdf_id = novo_arquivo.id
     bloquear_agenda(db, Evento)
     _validar_disponibilidade(db, dados)
     valores = dados.model_dump()
