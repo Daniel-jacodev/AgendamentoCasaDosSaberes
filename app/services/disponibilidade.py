@@ -13,7 +13,7 @@ from app.constants.horarios import (
     INICIO_EXPEDIENTE,
     INICIO_INTERVALO,
 )
-from app.models.evento import Evento
+from app.models.evento import STATUS_EVENTO_ATIVO, Evento
 from app.models.visita import Visita
 from app.schemas.disponibilidade import DisponibilidadeEspacoResponse, DisponibilidadeVisitaResponse, Periodo
 
@@ -39,7 +39,7 @@ def _bloqueios_do_dia(db: Session, data: date, espaco_id: int | None) -> list[Pe
     agenda = Visita if espaco_id is None else Evento
     query = select(agenda.data_inicio, agenda.data_fim).where(*sobreposicao(agenda, inicio, fim))
     if espaco_id is not None:
-        query = query.where(Evento.espaco_id == espaco_id)
+        query = query.where(Evento.espaco_id == espaco_id, Evento.status.in_(STATUS_EVENTO_ATIVO))
 
     bloqueios: list[Periodo] = []
     for inicio_reserva, fim_reserva in db.execute(query.order_by(agenda.data_inicio)):

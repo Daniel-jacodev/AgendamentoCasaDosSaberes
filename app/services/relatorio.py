@@ -6,7 +6,7 @@ from datetime import datetime, time
 from sqlalchemy import select
 from sqlalchemy.orm import Session
 
-from app.models.evento import Evento
+from app.models.evento import STATUS_EVENTO_ATIVO, Evento
 from app.models.visita import NaturezaInstituicaoEnum, StatusVisitaEnum, Visita
 from app.schemas.relatorio import FiltroRelatorio
 
@@ -63,7 +63,7 @@ class ResumoVisitas(ResumoAgenda):
 def resumir_eventos(db: Session, inicio: datetime, fim: datetime) -> ResumoEventos:
     resumo = ResumoEventos()
     dados = select(Evento.titulo, Evento.data_inicio, Evento.status, Evento.pauta, Evento.publico_estimado).where(
-        Evento.data_inicio.between(inicio, fim)
+        Evento.data_inicio.between(inicio, fim), Evento.status.in_(STATUS_EVENTO_ATIVO)
     )
     for titulo, data_inicio, status, pauta, publico in db.execute(dados):
         confirmado = status == 'aceito'

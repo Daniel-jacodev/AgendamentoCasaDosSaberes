@@ -1,6 +1,6 @@
 from collections.abc import Generator
 
-from sqlalchemy import URL, Table, create_engine, inspect
+from sqlalchemy import URL, CheckConstraint, Table, create_engine, inspect
 from sqlalchemy.dialects.postgresql import ENUM
 from sqlalchemy.engine import Connection
 from sqlalchemy.orm import DeclarativeBase, Session, sessionmaker
@@ -44,6 +44,18 @@ def _atualizar_tabela_eventos(connection: Connection, tabela: Table) -> None:
 
     columns = {column['name']: column for column in inspector.get_columns('eventos')}
     alteracoes = []
+    restricoes = {item['name']: item['sqltext'] for item in inspector.get_check_constraints('eventos')}
+    status_anterior = restricoes.get('ck_eventos_status', '')
+    if 'cancelado' not in status_anterior or 'negado' not in status_anterior:
+        restricao = next(
+            item
+            for item in tabela.constraints
+            if isinstance(item, CheckConstraint) and item.name == 'ck_eventos_status'
+        )
+        alteracoes.extend([
+            'DROP CONSTRAINT IF EXISTS ck_eventos_status',
+            f'ADD CONSTRAINT {restricao.name} CHECK ({restricao.sqltext})',
+        ])
     for coluna in tabela.columns:
         existente = columns.get(coluna.name)
         if existente is None:

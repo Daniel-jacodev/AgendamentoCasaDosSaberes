@@ -1,10 +1,21 @@
 import enum
 from datetime import datetime
 
-from sqlalchemy import Boolean, CheckConstraint, DateTime, Enum, Integer, String, Text, false
+from sqlalchemy import (
+    Boolean,
+    CheckConstraint,
+    DateTime,
+    Enum,
+    Integer,
+    String,
+    Text,
+    false,
+)
 from sqlalchemy.orm import Mapped, mapped_column
 
 from app.config.database import Base
+
+STATUS_EVENTO_ATIVO = ('pendente', 'aceito')
 
 
 class SegmentoEnum(str, enum.Enum):
@@ -43,9 +54,16 @@ class ClassificacaoIndicativaEnum(str, enum.Enum):
 
 class Evento(Base):
     __tablename__ = 'eventos'
+
     __table_args__ = (
-        CheckConstraint("status IN ('pendente', 'aceito')", name='ck_eventos_status'),
-        CheckConstraint('length(celular) <= 30', name='ck_eventos_celular'),
+        CheckConstraint(
+            "status IN ('pendente', 'aceito', 'negado', 'cancelado')",
+            name='ck_eventos_status',
+        ),
+        CheckConstraint(
+            'length(celular) <= 30',
+            name='ck_eventos_celular',
+        ),
     )
 
     id: Mapped[int] = mapped_column(
@@ -55,7 +73,7 @@ class Evento(Base):
     )
 
     status: Mapped[str] = mapped_column(
-        String(8),
+        String(20),
         nullable=False,
         default='pendente',
         server_default='pendente',

@@ -18,6 +18,13 @@ from app.models.evento import (
 )
 from app.services.horario_service import horario_local
 
+StatusEvento = Literal[
+    'pendente',
+    'aceito',
+    'negado',
+    'cancelado',
+]
+
 
 class EventoBase(BaseModel):
     titulo: str
@@ -33,10 +40,12 @@ class EventoBase(BaseModel):
     celular: str | None = None
     email: str | None = None
     entidade: str | None = None
+
     segmento: SegmentoEnum | None = None
     pauta: PautaEnum | None = None
     periodicidade: PeriodicidadeEnum | None = None
     classificacao_indicativa: ClassificacaoIndicativaEnum | None = None
+
     publico_estimado: int | None = None
     link_complementar: str | None = None
     arquivo_pdf_id: int | None = None
@@ -97,7 +106,10 @@ class EventoWrite(EventoBase):
 
     @field_validator('data_inicio', 'data_fim')
     @classmethod
-    def normalizar_horario(cls, valor: datetime) -> datetime:
+    def normalizar_horario(
+        cls,
+        valor: datetime,
+    ) -> datetime:
         return horario_local(valor)
 
     @model_validator(mode='after')
@@ -109,31 +121,46 @@ class EventoWrite(EventoBase):
 
 
 class EventoCreate(EventoWrite):
-    status: Literal['pendente', 'aceito'] = Field(
+    status: StatusEvento = Field(
         default='pendente',
         exclude=True,
     )
 
 
 class EventoUpdate(EventoWrite):
-    status: Literal['pendente', 'aceito'] = 'pendente'
+    status: StatusEvento = 'pendente'
+
+
+class EventoStatusUpdate(BaseModel):
+    status: Literal[
+        'aceito',
+        'negado',
+        'cancelado',
+    ]
 
 
 class EventoResponse(EventoBase):
-    model_config = ConfigDict(from_attributes=True)
+    model_config = ConfigDict(
+        from_attributes=True,
+    )
 
     id: int
-    status: Literal['pendente', 'aceito'] = 'pendente'
+    status: StatusEvento = 'pendente'
 
 
 class EventosResponse(BaseModel):
-    model_config = ConfigDict(from_attributes=True)
+    model_config = ConfigDict(
+        from_attributes=True,
+    )
 
     eventos: list[EventoResponse]
 
 
 class EventoPublicoResponse(BaseModel):
-    model_config = ConfigDict(from_attributes=True)
+    model_config = ConfigDict(
+        from_attributes=True,
+    )
+
     id: int
     status: Literal['aceito']
     titulo: str
