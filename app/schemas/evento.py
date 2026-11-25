@@ -43,6 +43,8 @@ class EventoBase(BaseModel):
 
     segmento: SegmentoEnum | None = None
     pauta: PautaEnum | None = None
+    segmentos: list[SegmentoEnum] | None = Field(default=None, max_length=len(SegmentoEnum))
+    pautas: list[PautaEnum] | None = Field(default=None, max_length=len(PautaEnum))
     periodicidade: PeriodicidadeEnum | None = None
     classificacao_indicativa: ClassificacaoIndicativaEnum | None = None
 
@@ -146,6 +148,17 @@ class EventoResponse(EventoBase):
 
     id: int
     status: StatusEvento = 'pendente'
+    origem: Literal['solicitacao_publica', 'administrativo'] | None = None
+
+    @model_validator(mode='after')
+    def preencher_legado(self) -> Self:
+        if self.segmentos is None:
+            self.segmentos = [self.segmento] if self.segmento else []
+        if self.pautas is None:
+            self.pautas = [self.pauta] if self.pauta else []
+        if self.origem is None and self.aceitou_termos:
+            self.origem = 'solicitacao_publica'
+        return self
 
 
 class EventosResponse(BaseModel):

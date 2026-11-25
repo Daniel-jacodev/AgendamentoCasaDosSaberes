@@ -190,6 +190,10 @@ def _distribuicoes(resumo: ResumoAgenda, titulo_categoria: str, categorias: list
     ]
 
 
+def _encerrados(resumo: ResumoAgenda) -> list[tuple[str, str]]:
+    return [('Negados', _numero(resumo.negados)), ('Cancelados', _numero(resumo.cancelados))]
+
+
 def _secao_eventos(resumo: ResumoEventos) -> list:
     publico = _numero(resumo.publico_estimado) if resumo.eventos_com_estimativa else '—'
     conteudo = [
@@ -197,9 +201,10 @@ def _secao_eventos(resumo: ResumoEventos) -> list:
         _indicadores([
             ('Eventos confirmados', _numero(resumo.confirmados)),
             ('Solicitações pendentes', _numero(resumo.pendentes)),
+            *_encerrados(resumo),
             (f'Público estimado em {_numero(resumo.eventos_com_estimativa)} evento(s)', publico),
         ]),
-        *_distribuicoes(resumo, 'Distribuição por pauta', resumo.pautas.most_common()),
+        *_distribuicoes(resumo, 'Pautas dos eventos confirmados', resumo.pautas.most_common()),
     ]
     if resumo.confirmados:
         conteudo.extend([
@@ -215,6 +220,7 @@ def _secao_visitas(resumo: ResumoVisitas) -> list:
         _indicadores([
             ('Visitas confirmadas', _numero(resumo.confirmados)),
             ('Solicitações pendentes', _numero(resumo.pendentes)),
+            *_encerrados(resumo),
             ('Pessoas previstas', _numero(resumo.pessoas_previstas)),
             ('Grupos com pessoas com deficiência', _numero(resumo.grupos_com_pcd)),
         ]),
@@ -225,6 +231,13 @@ def _secao_visitas(resumo: ResumoVisitas) -> list:
 def gerar_pdf(filtro: FiltroRelatorio, eventos: ResumoEventos | None, visitas: ResumoVisitas | None) -> bytes:
     arquivo = BytesIO()
     periodo = f'{filtro.data_inicio:%d/%m/%Y} a {filtro.data_fim:%d/%m/%Y}'
+    status = {
+        'todos': 'Todos',
+        'aceito': 'Confirmados',
+        'pendente': 'Pendentes',
+        'negado': 'Negados',
+        'cancelado': 'Cancelados',
+    }[filtro.status]
     documento = SimpleDocTemplate(
         arquivo,
         pagesize=A4,
@@ -250,7 +263,7 @@ def gerar_pdf(filtro: FiltroRelatorio, eventos: ResumoEventos | None, visitas: R
 
     conteudo = [
         Paragraph('Relatório de agendamentos', TITULO),
-        Paragraph(f'<b>{periodo}</b> (horário de Fortaleza)', CORPO),
+        Paragraph(f'<b>{periodo}</b> (horário de Fortaleza) · Status: {status}', CORPO),
         Paragraph(
             'O período considera a data de início do agendamento. Os gráficos mostram a participação '
             'no total confirmado de cada tipo. Os dados de público refletem as previsões informadas no cadastro.',

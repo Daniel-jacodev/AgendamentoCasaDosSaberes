@@ -27,7 +27,8 @@ def baixar_relatorio_agendamentos(
     db: Annotated[Session, Depends(get_db)],
 ) -> RespostaPDF:
     eventos, visitas = consultar_relatorio(db, filtro)
-    arquivo = f'relatorio-{filtro.tipo}-{filtro.data_inicio:%Y-%m-%d}-a-{filtro.data_fim:%Y-%m-%d}.pdf'
+    sufixo = f'-{filtro.status}' if filtro.status != 'todos' else ''
+    arquivo = f'relatorio-{filtro.tipo}-{filtro.data_inicio:%Y-%m-%d}-a-{filtro.data_fim:%Y-%m-%d}{sufixo}.pdf'
     return RespostaPDF(
         gerar_pdf(filtro, eventos, visitas),
         headers={'Content-Disposition': f'attachment; filename="{arquivo}"', 'Cache-Control': 'no-store'},

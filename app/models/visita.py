@@ -16,11 +16,18 @@ class NaturezaInstituicaoEnum(str, enum.Enum):
 class StatusVisitaEnum(str, enum.Enum):
     PENDENTE = 'pendente'
     APROVADA = 'aprovada'
+    NEGADA = 'negada'
+    CANCELADA = 'cancelada'
+
+
+STATUS_VISITA_ATIVA = (StatusVisitaEnum.PENDENTE.value, StatusVisitaEnum.APROVADA.value)
 
 
 class Visita(Base):
     __tablename__ = 'visitas'
-    __table_args__ = (CheckConstraint("status IN ('pendente', 'aprovada')", name='ck_visitas_status'),)
+    __table_args__ = (
+        CheckConstraint("status IN ('pendente', 'aprovada', 'negada', 'cancelada')", name='ck_visitas_status'),
+    )
 
     id: Mapped[int] = mapped_column(
         Integer,
@@ -29,7 +36,7 @@ class Visita(Base):
     )
 
     status: Mapped[str] = mapped_column(
-        String(8),
+        String(20),
         nullable=False,
         default=StatusVisitaEnum.PENDENTE.value,
         server_default=StatusVisitaEnum.PENDENTE.value,

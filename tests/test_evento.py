@@ -13,8 +13,9 @@ from app.services import auth
 from app.services import evento as evento_service
 
 
-def test_cadastro_multipart_salva_pdf_privado(client, session, tmp_path, monkeypatch):
-    monkeypatch.setattr(evento_service, 'PASTA_PDFS', tmp_path)
+def test_cadastro_multipart_salva_pdf_privado(client, session, tmp_path, monkeypatch, administrador):
+    privada = tmp_path / 'privada'
+    monkeypatch.setattr(evento_service, 'PASTA_PDFS', privada)
     dados = {
         'titulo': 'Mostra cultural',
         'descricao': 'Uma mostra aberta ao público.',
@@ -34,8 +35,22 @@ def test_cadastro_multipart_salva_pdf_privado(client, session, tmp_path, monkeyp
     assert resposta.status_code == HTTPStatus.CREATED
     registro = session.get(ArquivoPDF, resposta.json()['arquivo_pdf_id'])
     arquivo = Path(registro.caminho_local)
-    assert arquivo.parent == tmp_path
+    assert arquivo.parent == privada
     assert arquivo.read_bytes() == pdf.getvalue()
+
+    rota = f'/eventos/{resposta.json()["id"]}/proposta'
+    assert client.get(rota).status_code == HTTPStatus.UNAUTHORIZED
+    download = client.get(rota, headers=administrador)
+    assert download.status_code == HTTPStatus.OK
+    assert download.headers['Content-Type'] == 'application/pdf'
+    assert 'mostra.pdf' in download.headers['Content-Disposition']
+    assert download.content == pdf.getvalue()
+
+    fora_da_pasta = tmp_path / 'outro.pdf'
+    fora_da_pasta.write_bytes(pdf.getvalue())
+    registro.caminho_local = str(fora_da_pasta)
+    session.commit()
+    assert client.get(rota, headers=administrador).status_code == HTTPStatus.NOT_FOUND
 
 
 def test_cancelamento_libera_horario_e_reativacao_respeita_conflito(client, evento, authenticated_headers):
@@ -99,6 +114,9 @@ def test_get_evento_populated(client, evento, authenticated_headers):
                 'entidade': None,
                 'segmento': None,
                 'pauta': None,
+                'segmentos': [],
+                'pautas': [],
+                'origem': None,
                 'periodicidade': None,
                 'link_complementar': None,
                 'arquivo_pdf_id': None,
@@ -264,7 +282,7 @@ def test_create_evento_conflitante(client, evento, inicio, fim, authenticated_he
 @pytest.mark.parametrize(
     ('inicio', 'fim'),
     [
-        ('2026-10-25T12:00:00', '2026-10-25T14:00:00'),
+        ('2026-10-25T10:00:00', '2026-10-25T12:00:00'),
         ('2026-10-25T16:00:00', '2026-10-25T18:00:00'),
         ('2026-10-26T14:00:00', '2026-10-26T16:00:00'),
     ],
@@ -301,7 +319,7 @@ def test_update_evento_conflitante(client, evento, authenticated_headers):
         'espaco_id': 1,
         'titulo': 'Outro evento',
         'descricao': 'Descricao de outro evento.',
-        'data_inicio': '2026-10-25T17:00:00',
+        'data_inicio': '2026-10-25T16:00:00',
         'data_fim': '2026-10-25T18:00:00',
     }
     response = client.post('/eventos/', json=payload)
@@ -311,7 +329,7 @@ def test_update_evento_conflitante(client, evento, authenticated_headers):
     assert response.status_code == HTTPStatus.CONFLICT
     eventos = client.get('/eventos/', headers=authenticated_headers).json()['eventos']
     atualizado = next(item for item in eventos if item['id'] == evento_id)
-    assert atualizado['data_inicio'] == '2026-10-25T17:00:00'
+    assert atualizado['data_inicio'] == '2026-10-25T16:00:00'
 
 
 @pytest.mark.parametrize('celular', [None, '(85) 99999-1234', '9' * 30])
@@ -429,7 +447,7 @@ def test_criacao_publica_fica_pendente_mesmo_com_token_enviado(client, authentic
     assert response.json()['status'] == 'pendente'
 
 
-@pytest.mark.parametrize('espaco_id', [2, 3, 4, 5])
+@pytest.mark.parametrize('espaco_id', [2, 3, 4])
 def test_eventos_simultaneos_em_espacos_diferentes(client, evento, authenticated_headers, espaco_id):
     payload = client.get('/eventos/', headers=authenticated_headers).json()['eventos'][0]
     payload['espaco_id'] = espaco_id
@@ -460,3 +478,60 @@ def test_espaco_obrigatorio(client, evento, authenticated_headers, espaco_id):
         client.put('/eventos/1', json=payload, headers=authenticated_headers).status_code
         == HTTPStatus.UNPROCESSABLE_ENTITY
     )
+
+
+def test_classificacoes_multiplas_e_origem_sobrevivem_a_decisao_e_edicao_legada(client, authenticated_headers):
+    payload = {
+        'espaco_id': 5,
+        'titulo': 'Sessão noturna',
+        'descricao': 'Sessão aberta à comunidade.',
+        'data_inicio': '2026-12-01T18:00:00',
+        'data_fim': '2026-12-01T21:00:00',
+        'segmentos': ['Música', 'Teatro', 'Música'],
+        'pautas': ['Social', 'Racial'],
+        'origem': 'administrativo',
+    }
+    resposta = client.post('/eventos/', json=payload)
+    assert resposta.status_code == HTTPStatus.CREATED
+    evento = resposta.json()
+    assert evento['origem'] == 'solicitacao_publica'
+    assert evento['segmentos'] == ['Música', 'Teatro']
+    assert evento['pautas'] == ['Social', 'Racial']
+    rota = f'/eventos/{evento["id"]}'
+    assert (
+        client.patch(rota + '/status', json={'status': 'aceito'}, headers=authenticated_headers).status_code
+        == HTTPStatus.OK
+    )
+    payload.update(segmento='Música', pauta='Social', status='aceito')
+    payload.pop('segmentos')
+    payload.pop('pautas')
+    atualizado = client.put(rota, json=payload, headers=authenticated_headers).json()
+    assert atualizado['origem'] == 'solicitacao_publica'
+    assert atualizado['segmentos'] == ['Música', 'Teatro']
+    assert atualizado['pautas'] == ['Social', 'Racial']
+    assert 'origem' not in client.get('/eventos/aceitos').json()['eventos'][0]
+
+
+@pytest.mark.parametrize(
+    ('espaco', 'inicio', 'fim'),
+    [
+        (5, '2026-12-01T14:00:00', '2026-12-01T16:00:00'),
+        (1, '2026-12-01T18:00:00', '2026-12-01T20:00:00'),
+        (1, '2026-12-01T11:00:00', '2026-12-01T13:00:00'),
+        (1, '2026-12-01T14:00:00', '2026-12-01T15:00:00'),
+        (1, '2026-12-01T08:00:00', '2026-12-01T12:00:00'),
+        (1, '2026-09-01T14:00:00', '2026-09-01T16:00:00'),
+    ],
+)
+def test_gravacao_evento_recusa_periodos_fora_da_disponibilidade(client, espaco, inicio, fim):
+    resposta = client.post(
+        '/eventos/',
+        json={
+            'titulo': 'Evento de teste',
+            'descricao': 'Atividade aberta à comunidade.',
+            'espaco_id': espaco,
+            'data_inicio': inicio,
+            'data_fim': fim,
+        },
+    )
+    assert resposta.status_code == HTTPStatus.UNPROCESSABLE_ENTITY

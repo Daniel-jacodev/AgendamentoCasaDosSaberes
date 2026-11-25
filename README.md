@@ -23,7 +23,9 @@ O frontend público deve usar `GET /eventos/aceitos` para carregar a programaç�
 
 `POST /eventos/` é público: sem sessão, retorna o evento com status `pendente`; com token válido, identifica o administrador e cria o evento já como `aceito`. O status no JSON de entrada não altera essa regra. O campo `celular` é opcional (até 30 caracteres). Enviar `status="aceito"` no cadastro público mantém o evento pendente; a aprovação exige autenticação.
 
-`POST /eventos/` aceita JSON ou `multipart/form-data`. No formulário multipart, envie o JSON como texto no campo `dados` e, opcionalmente, um PDF de até 30 MB no campo `arquivo`. O anexo é salvo em `storage/private/`, e a resposta autenticada de consulta inclui `arquivo_pdf_id`.
+`POST /eventos/` aceita JSON ou `multipart/form-data`. No formulário multipart, envie o JSON como texto no campo `dados` e, opcionalmente, um PDF de até 30 MB no campo `arquivo`. O anexo é salvo em `storage/private/`, e a resposta autenticada de consulta inclui `arquivo_pdf_id`. O papel `administrador` pode baixar o PDF em `GET /eventos/{id}/proposta`.
+
+A reserva pode enviar listas `segmentos` e `pautas` com as opções selecionadas. Os campos singulares continuam disponíveis para clientes antigos. A resposta autenticada indica a origem `solicitacao_publica` ou `administrativo` quando identificável.
 
 `PATCH /eventos/{id}/status` recebe `{"status": "aceito"}`, `{"status": "negado"}` ou `{"status": "cancelado"}`. A edição completa via `PUT /eventos/{id}` também pode atualizar o status. Eventos negados e cancelados liberam o horário e ficam fora dos totais de confirmados e pendentes do relatório. `DELETE /eventos/{id}` exclui o evento e retorna `204`. PATCH, PUT e DELETE exigem token do Keycloak.
 
@@ -39,8 +41,11 @@ As consultas retornam `{"visitas": [...]}`.
 | `GET /visitas/pendentes` | Somente visitas com status `pendente` | Bearer do Keycloak |
 | `GET /visitas/aceitas` | Somente visitas com status `aprovada`, com ID e horários | Público |
 | `GET /visitas/ordenadas` | Todas as visitas por data de início crescente, com desempate pelo ID | Bearer do Keycloak |
-| `POST /visitas/` | Retorna `201` com status `pendente` para pedidos públicos ou `aprovada` para cadastros autenticados | Público, com Bearer do Keycloak opcional |
-| `DELETE /visitas/{id}` | Exclui uma visita e retorna `204` | Bearer do Keycloak |
+| `POST /visitas/` | Retorna `201` com status `pendente` para pedidos públicos ou `aprovada` para cadastros de administradores | Público, com Bearer do Keycloak opcional |
+| `PATCH /visitas/{id}/status` | Aprova, nega ou cancela com `status` igual a `aprovada`, `negada` ou `cancelada` | Administrador |
+| `DELETE /visitas/{id}` | Alias de cancelamento para clientes antigos, com retorno `204` | Administrador |
+
+Negar ou cancelar libera o horário e mantém o registro. Uma visita aprovada pode ser cancelada.
 
 ## Exposições e formulário de visita
 
@@ -63,9 +68,9 @@ As tabelas são criadas na inicialização da API. Os dados de protótipo já sa
 
 `GET /relatorios/agendamentos?tipo=ambos&data_inicio=2026-11-01&data_fim=2026-11-30`
 
-Envie `Authorization: Bearer <access_token>` com o papel `administrador`. O parâmetro `tipo` aceita `eventos`, `visitas` ou `ambos`. O período inclui os dois dias informados e usa a data de início de cada agendamento, no horário de Fortaleza. Datas inválidas, campos obrigatórios ausentes ou a data final anterior à inicial retornam `422`.
+Envie `Authorization: Bearer <access_token>` com o papel `administrador`. O parâmetro `tipo` aceita `eventos`, `visitas` ou `ambos`. O filtro opcional `status` aceita `todos`, `aceito`, `pendente`, `negado` ou `cancelado`. O período inclui os dois dias informados e usa a data de início de cada agendamento, no horário de Fortaleza. Datas inválidas, campos obrigatórios ausentes ou a data final anterior à inicial retornam `422`.
 
-A resposta contém `application/pdf` e o nome sugerido para download em `Content-Disposition`. Períodos sem agendamentos também retornam um PDF. O relatório informa os totais de confirmados e de pendentes. Os gráficos mostram o percentual de confirmados por dia da semana, hora de início e, nos eventos, por pauta. O ranking apresenta até cinco eventos com maior público estimado, pois o sistema registra previsões de público. Para visitas, o PDF mostra pessoas previstas, grupos com pessoas com deficiência e a distribuição por natureza da instituição.
+A resposta contém `application/pdf` e o nome sugerido para download em `Content-Disposition`. Períodos sem agendamentos também retornam um PDF. O relatório informa os totais por status. Os gráficos mostram o percentual de confirmados por dia da semana, hora de início e, nos eventos, por pauta. O ranking apresenta até cinco eventos com maior público estimado, pois o sistema registra previsões de público. Para visitas, o PDF mostra pessoas previstas, grupos com pessoas com deficiência e a distribuição por natureza da instituição.
 
 ## Disponibilidade
 
@@ -76,7 +81,7 @@ A resposta contém `application/pdf` e o nome sugerido para download em `Content
 
 As consultas retornam `horarios_reservaveis` e `bloqueios`, ambos com intervalos no formato `{"data_inicio": "...", "data_fim": "..."}`, em horário local de Fortaleza. Os bloqueios incluem solicitações pendentes e agendamentos confirmados. A API recorta os bloqueios à data consultada, consolida intervalos sobrepostos ou contíguos e retorna apenas seus horários.
 
-As janelas públicas vão das 8h às 12h e das 13h30 às 18h. Para a Área Externa (`espaco_id=5`), o turno é das 18h às 21h. Cada janela indica um intervalo livre dentro do qual o usuário pode escolher início e fim. Para espaços, a consulta omite janelas com menos de duas horas e informa os limites de duração de duas a três horas para a seleção no calendário.
+As janelas públicas vão das 8h às 12h e das 13h30 às 18h. Para a Área Externa (`espaco_id=5`), o turno é das 18h às 21h. Cada janela indica um intervalo livre dentro do qual o usuário pode escolher início e fim. Para espaços, a consulta omite janelas com menos de duas horas e informa os limites de duração de duas a três horas para a seleção no calendário. Para visitas, a duração é de uma hora. A consulta oferece períodos futuros e a gravação valida as mesmas regras.
 
 ## Conflitos na gravação
 

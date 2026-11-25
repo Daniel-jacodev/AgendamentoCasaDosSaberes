@@ -2,6 +2,7 @@ import enum
 from datetime import datetime
 
 from sqlalchemy import (
+    JSON,
     Boolean,
     CheckConstraint,
     DateTime,
@@ -134,6 +135,10 @@ class Evento(Base):
         Enum(PautaEnum),
         nullable=True,
     )
+
+    segmentos: Mapped[list[str] | None] = mapped_column(JSON(none_as_null=True))
+    pautas: Mapped[list[str] | None] = mapped_column(JSON(none_as_null=True))
+    origem: Mapped[str | None] = mapped_column(String(24))
 
     periodicidade: Mapped[PeriodicidadeEnum | None] = mapped_column(
         Enum(PeriodicidadeEnum),

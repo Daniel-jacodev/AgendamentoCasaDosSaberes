@@ -11,7 +11,12 @@ from sqlalchemy.pool import StaticPool
 from app.config.database import get_db, table_registry
 from app.main import app
 from app.models import Evento
-from app.services import auth
+from app.services import auth, horario_service
+
+
+@pytest.fixture(autouse=True)
+def relogio_agenda(monkeypatch):
+    monkeypatch.setattr(horario_service, 'agora_local', lambda: datetime(2026, 10, 1))
 
 
 @pytest.fixture
@@ -100,3 +105,11 @@ def authenticated_headers(monkeypatch):
     )
 
     return {'Authorization': 'Bearer valid-token'}
+
+
+@pytest.fixture
+def administrador(monkeypatch):
+    monkeypatch.setattr(
+        auth, 'validar_token_keycloak', lambda _: {'sub': 'admin', 'realm_access': {'roles': ['administrador']}}
+    )
+    return {'Authorization': 'Bearer admin-token'}

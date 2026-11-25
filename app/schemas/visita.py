@@ -127,6 +127,10 @@ class VisitaResponse(VisitaBase):
     status: StatusVisitaEnum
 
 
+class VisitaStatusUpdate(BaseModel):
+    status: Literal[StatusVisitaEnum.APROVADA, StatusVisitaEnum.NEGADA, StatusVisitaEnum.CANCELADA]
+
+
 class VisitasResponse(BaseModel):
     visitas: list[VisitaResponse]
 

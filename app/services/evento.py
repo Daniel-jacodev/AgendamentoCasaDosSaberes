@@ -15,7 +15,7 @@ from app.schemas.evento import (
     EventoWrite,
     StatusEvento,
 )
-from app.services.disponibilidade import bloquear_agenda, sobreposicao
+from app.services.disponibilidade import bloquear_agenda, sobreposicao, validar_horario_evento
 
 PASTA_PDFS = Path(__file__).resolve().parents[2] / 'storage' / 'private'
 LIMITE_PDF = 30 * 1024 * 1024
@@ -68,6 +68,20 @@ def _validar_disponibilidade(
         )
 
 
+def _classificacoes(dados: EventoWrite, evento: Evento | None = None) -> dict:
+    valores = {}
+    for singular, plural in (('segmento', 'segmentos'), ('pauta', 'pautas')):
+        itens = getattr(dados, plural)
+        primeiro = getattr(dados, singular)
+        if itens is None and evento is not None:
+            if singular not in dados.model_fields_set or primeiro == getattr(evento, singular):
+                continue
+        itens = list(dict.fromkeys(itens if itens is not None else ([primeiro] if primeiro is not None else [])))
+        valores[plural] = itens
+        valores[singular] = itens[0] if itens else None
+    return valores
+
+
 def create(
     db: Session,
     dados: EventoCreate,
@@ -84,8 +98,13 @@ def create(
         dados,
     )
 
-    valores = dados.model_dump()
-    valores['status'] = status_evento
+    validar_horario_evento(dados.data_inicio, dados.data_fim, dados.espaco_id)
+    valores = dados.model_dump(exclude={'segmento', 'segmentos', 'pauta', 'pautas'})
+    valores.update(
+        _classificacoes(dados),
+        status=status_evento,
+        origem='solicitacao_publica' if status_evento == 'pendente' else 'administrativo',
+    )
     evento = Evento(**valores)
     caminho = PASTA_PDFS / f'{uuid4()}.pdf' if arquivo is not None else None
     if arquivo is None:
@@ -125,6 +144,22 @@ def _salvar_pdf(db: Session, arquivo: UploadFile, caminho: Path) -> int:
     return registro.id
 
 
+def consultar_pdf(db: Session, evento_id: int) -> tuple[str, Path | bytes] | None:
+    arquivo = db.scalar(
+        select(ArquivoPDF).join(Evento, Evento.arquivo_pdf_id == ArquivoPDF.id).where(Evento.id == evento_id)
+    )
+    if arquivo is None:
+        return None
+    nome = Path(arquivo.nome_original.replace('\\', '/')).name or 'proposta.pdf'
+    raiz = PASTA_PDFS.resolve()
+    caminho = Path(arquivo.caminho_local).resolve()
+    if caminho.is_relative_to(raiz) and caminho.is_file():
+        return nome, caminho
+    if arquivo.dados and arquivo.dados.startswith(b'%PDF-'):
+        return nome, arquivo.dados
+    return None
+
+
 def update(
     db: Session,
     evento_id: int,
@@ -143,7 +178,11 @@ def update(
     if dados.status in STATUS_EVENTO_ATIVO:
         _validar_disponibilidade(db, dados, evento.id)
 
-    valores = dados.model_dump()
+    if (dados.data_inicio, dados.data_fim, dados.espaco_id) != (evento.data_inicio, evento.data_fim, evento.espaco_id):
+        validar_horario_evento(dados.data_inicio, dados.data_fim, dados.espaco_id)
+
+    valores = dados.model_dump(exclude={'segmento', 'segmentos', 'pauta', 'pautas'})
+    valores.update(_classificacoes(dados, evento))
     if 'arquivo_pdf_id' not in dados.model_fields_set:
         del valores['arquivo_pdf_id']
     elif dados.arquivo_pdf_id != evento.arquivo_pdf_id:

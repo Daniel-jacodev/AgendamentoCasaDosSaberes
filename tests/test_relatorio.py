@@ -6,17 +6,10 @@ import pytest
 from app.models.evento import Evento, PautaEnum
 from app.models.visita import NaturezaInstituicaoEnum, Visita
 from app.schemas.relatorio import FiltroRelatorio
-from app.services import auth
 from app.services.relatorio import consultar_relatorio
 
 ROTA = '/relatorios/agendamentos'
 FILTRO = {'tipo': 'ambos', 'data_inicio': '2026-11-23', 'data_fim': '2026-11-24'}
-
-
-@pytest.fixture
-def administrador(monkeypatch):
-    monkeypatch.setattr(auth, 'validar_token_keycloak', lambda _: {'realm_access': {'roles': ['administrador']}})
-    return {'Authorization': 'Bearer admin-token'}
 
 
 @pytest.fixture
@@ -40,6 +33,7 @@ def agenda(session):
                 espaco_id=1,
                 status=status,
                 pauta=pauta,
+                pautas=['Social', 'Racial'] if titulo == 'Abertura' else None,
                 publico_estimado=publico,
             )
         )
@@ -65,11 +59,12 @@ def test_metricas_do_periodo(session, agenda):
     assert (eventos.confirmados, eventos.pendentes) == (3, 1)
     assert eventos.dias == {0: 1, 1: 2}
     assert eventos.horarios == {0: 1, 9: 1, 23: 1}
-    assert eventos.pautas == {'Social': 2, 'Não informada': 1}
+    assert eventos.pautas == {'Social': 2, 'Racial': 1, 'Não informada': 1}
     assert (eventos.publico_estimado, eventos.eventos_com_estimativa) == (140, 2)
     assert [evento.titulo for evento in eventos.ranking] == ['Arte & Memória <UFC>', 'Abertura']
 
     assert (visitas.confirmados, visitas.pendentes) == (1, 0)
+    assert (eventos.negados, eventos.cancelados) == (1, 1)
     assert visitas.horarios == {14: 1}
     assert visitas.instituicoes == {'Pública': 1}
     assert (visitas.pessoas_previstas, visitas.grupos_com_pcd) == (30, 1)
@@ -104,3 +99,26 @@ def test_filtro_invalido(client, administrador, alteracao):
 def test_relatorio_exige_papel_administrador(client, authenticated_headers):
     assert client.get(ROTA, params=FILTRO).status_code == HTTPStatus.UNAUTHORIZED
     assert client.get(ROTA, params=FILTRO, headers=authenticated_headers).status_code == HTTPStatus.FORBIDDEN
+
+
+def test_relatorio_filtrado_por_status_inclui_somente_os_registros_desejados(client, session, agenda, administrador):
+    session.add(
+        Visita(
+            nome_responsavel='Outra pessoa',
+            email='outra@example.com',
+            telefone='85999999999',
+            quantidade_pessoas=12,
+            data_inicio=datetime(2026, 11, 23, 15),
+            data_fim=datetime(2026, 11, 23, 16),
+            status='negada',
+        )
+    )
+    session.commit()
+    params = {**FILTRO, 'status': 'negado'}
+    eventos, visitas = consultar_relatorio(session, FiltroRelatorio.model_validate(params))
+    assert (eventos.negados, eventos.confirmados, eventos.pendentes, eventos.cancelados) == (1, 0, 0, 0)
+    assert (visitas.negados, visitas.confirmados, visitas.pendentes, visitas.cancelados) == (1, 0, 0, 0)
+    resposta = client.get(ROTA, params=params, headers=administrador)
+    assert resposta.status_code == HTTPStatus.OK
+    assert resposta.headers['Content-Disposition'].endswith('-negado.pdf"')
+    assert resposta.content.startswith(b'%PDF-')

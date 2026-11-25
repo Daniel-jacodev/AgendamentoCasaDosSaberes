@@ -1,4 +1,5 @@
 from typing import Annotated
+from urllib.parse import quote
 
 from fastapi import (
     APIRouter,
@@ -10,6 +11,7 @@ from fastapi import (
 )
 from fastapi.concurrency import run_in_threadpool
 from fastapi.exceptions import RequestValidationError
+from fastapi.responses import FileResponse
 from pydantic import ValidationError
 from sqlalchemy.orm import Session
 from starlette.datastructures import UploadFile
@@ -25,6 +27,7 @@ from app.schemas.evento import (
 )
 from app.services import evento as eventoService
 from app.services.auth import (
+    exigir_administrador,
     get_current_user_claims,
     get_optional_user_claims,
 )
@@ -222,6 +225,24 @@ def update_evento_status(
         )
 
     return evento
+
+
+@router.get(
+    '/{evento_id}/proposta',
+    response_class=FileResponse,
+    dependencies=[Depends(exigir_administrador)],
+    responses={200: {'content': {'application/pdf': {'schema': {'type': 'string', 'format': 'binary'}}}}},
+)
+def baixar_proposta(evento_id: int, db: T_Session) -> Response:
+    arquivo = eventoService.consultar_pdf(db, evento_id)
+    if arquivo is None:
+        raise HTTPException(status.HTTP_404_NOT_FOUND, 'PDF da proposta não encontrado.')
+    nome, conteudo = arquivo
+    cabecalhos = {'Cache-Control': 'no-store', 'X-Content-Type-Options': 'nosniff'}
+    if isinstance(conteudo, bytes):
+        cabecalhos['Content-Disposition'] = f"attachment; filename*=UTF-8''{quote(nome, safe='')}"
+        return Response(conteudo, media_type='application/pdf', headers=cabecalhos)
+    return FileResponse(conteudo, filename=nome, media_type='application/pdf', headers=cabecalhos)
 
 
 @router.delete(

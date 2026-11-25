@@ -36,10 +36,14 @@ def get_current_user_claims(
     return validar_token_keycloak(credentials.credentials)
 
 
-def exigir_administrador(claims: Annotated[dict, Depends(get_current_user_claims)]) -> None:
+def tem_papel_administrador(claims: dict) -> bool:
     realm_access = claims.get('realm_access')
     roles = realm_access.get('roles') if isinstance(realm_access, dict) else None
-    if not isinstance(roles, list) or 'administrador' not in roles:
+    return isinstance(roles, list) and 'administrador' in roles
+
+
+def exigir_administrador(claims: Annotated[dict, Depends(get_current_user_claims)]) -> None:
+    if not tem_papel_administrador(claims):
         raise HTTPException(403, 'Permissão administrativa necessária.')
 
 

@@ -6,6 +6,7 @@ from pydantic import BaseModel, Field, model_validator
 
 class FiltroRelatorio(BaseModel):
     tipo: Literal['eventos', 'visitas', 'ambos']
+    status: Literal['todos', 'aceito', 'pendente', 'negado', 'cancelado'] = 'todos'
     data_inicio: date = Field(description='Primeiro dia do período, inclusive.')
     data_fim: date = Field(description='Último dia do período, inclusive.')
 

@@ -108,6 +108,21 @@ def _atualizar_tabela_eventos(connection: Connection, tabela: Table) -> None:
         connection.exec_driver_sql('ALTER TABLE eventos ' + ', '.join(alteracoes))
 
 
+def _atualizar_tabela_visitas(connection: Connection) -> None:
+    inspector = inspect(connection)
+    restricoes = {item['name']: item['sqltext'] for item in inspector.get_check_constraints('visitas')}
+    atual = restricoes.get('ck_visitas_status', '')
+    if 'negada' in atual and 'cancelada' in atual:
+        return
+    connection.exec_driver_sql(
+        'ALTER TABLE visitas DROP CONSTRAINT IF EXISTS ck_visitas_status, ALTER COLUMN status TYPE VARCHAR(20)'
+    )
+    connection.exec_driver_sql("UPDATE visitas SET status = 'negada' WHERE status = 'recusada'")
+    connection.exec_driver_sql(
+        "ALTER TABLE visitas ADD CONSTRAINT ck_visitas_status CHECK (status IN ('pendente', 'aprovada', 'negada', 'cancelada'))"
+    )
+
+
 def init_db() -> None:
     # Importa os models para registrar suas tabelas nos metadados do Base.
     from app import models  # noqa: F401, PLC0415
@@ -119,3 +134,4 @@ def init_db() -> None:
         Base.metadata.create_all(bind=connection)
         if connection.dialect.name == 'postgresql':
             _atualizar_tabela_eventos(connection, Base.metadata.tables['eventos'])
+            _atualizar_tabela_visitas(connection)

@@ -13,10 +13,16 @@ from app.schemas.visita import (
     VisitaResponse,
     VisitasPublicasResponse,
     VisitasResponse,
+    VisitaStatusUpdate,
 )
 from app.services import conteudo_visita
 from app.services import visita as visita_service
-from app.services.auth import exigir_administrador, get_current_user_claims, get_optional_user_claims
+from app.services.auth import (
+    exigir_administrador,
+    get_current_user_claims,
+    get_optional_user_claims,
+    tem_papel_administrador,
+)
 from app.services.disponibilidade import consultar_visitas
 
 router = APIRouter(prefix='/visitas', tags=['Visitas'])
@@ -74,7 +80,9 @@ def create_visita(
     db: T_Session,
     claims: Annotated[dict | None, Depends(get_optional_user_claims)],
 ):
-    status_visita = StatusVisitaEnum.PENDENTE if claims is None else StatusVisitaEnum.APROVADA
+    status_visita = (
+        StatusVisitaEnum.APROVADA if claims and tem_papel_administrador(claims) else StatusVisitaEnum.PENDENTE
+    )
     return visita_service.create(
         db,
         visita,
@@ -82,16 +90,24 @@ def create_visita(
     )
 
 
+@router.patch('/{visita_id}/status', response_model=VisitaResponse, dependencies=[Depends(exigir_administrador)])
+def atualizar_status_visita(visita_id: int, dados: VisitaStatusUpdate, db: T_Session):
+    visita = visita_service.atualizar_status(db, visita_id, dados.status)
+    if visita is None:
+        raise HTTPException(status.HTTP_404_NOT_FOUND, 'Visita não encontrada.')
+    return visita
+
+
 @router.delete(
     '/{visita_id}',
     status_code=status.HTTP_204_NO_CONTENT,
-    dependencies=[Depends(get_current_user_claims)],
+    dependencies=[Depends(exigir_administrador)],
 )
-def delete_visita(
+def cancelar_visita_legada(
     visita_id: int,
     db: T_Session,
 ):
-    if not visita_service.delete(db, visita_id):
+    if visita_service.atualizar_status(db, visita_id, StatusVisitaEnum.CANCELADA) is None:
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND,
             detail='Visita não encontrada.',
