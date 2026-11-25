@@ -9,6 +9,7 @@ from sqlalchemy.orm import Session
 from app.models.evento import Evento
 from app.models.visita import NaturezaInstituicaoEnum, StatusVisitaEnum, Visita
 from app.schemas.relatorio import FiltroRelatorio
+from app.services.recorrencia_evento import eventos_no_periodo, intervalos_evento
 
 LIMITE_RANKING = 5
 NATUREZAS = {
@@ -69,19 +70,39 @@ class ResumoVisitas(ResumoAgenda):
 def resumir_eventos(db: Session, inicio: datetime, fim: datetime, status: str = 'todos') -> ResumoEventos:
     resumo = ResumoEventos()
     dados = select(
-        Evento.titulo, Evento.data_inicio, Evento.status, Evento.pauta, Evento.pautas, Evento.publico_estimado
+        Evento.titulo,
+        Evento.data_inicio,
+        Evento.data_fim,
+        Evento.periodicidade,
+        Evento.data_fim_recorrencia,
+        Evento.status,
+        Evento.pauta,
+        Evento.pautas,
+        Evento.publico_estimado,
     )
-    dados = dados.where(Evento.data_inicio.between(inicio, fim))
+    dados = dados.where(*eventos_no_periodo(inicio, fim))
     if status != 'todos':
         dados = dados.where(Evento.status == status)
-    for titulo, data_inicio, estado, pauta, pautas, publico in db.execute(dados):
-        resumo.contabilizar(data_inicio, estado)
-        if estado == 'aceito':
-            resumo.pautas.update(pautas or [pauta.value if pauta is not None else 'Não informada'])
-            if publico is not None:
+    for evento in db.execute(dados):
+        limite = evento.data_fim_recorrencia if evento.status == 'aceito' else None
+        intervalos = intervalos_evento(
+            (evento.data_inicio, evento.data_fim), evento.periodicidade, limite, desde=inicio.date(), ate=fim.date()
+        )
+        for comeco, _ in intervalos:
+            if not inicio <= comeco <= fim:
+                continue
+            resumo.contabilizar(comeco, evento.status)
+            if evento.status != 'aceito':
+                continue
+            resumo.pautas.update(evento.pautas or [evento.pauta.value if evento.pauta is not None else 'Não informada'])
+            if evento.publico_estimado is not None:
                 resumo.eventos_com_estimativa += 1
-                resumo.publico_estimado += publico
-                insort(resumo.ranking, EventoRankeado(titulo, data_inicio, publico), key=EventoRankeado.ordem)
+                resumo.publico_estimado += evento.publico_estimado
+                insort(
+                    resumo.ranking,
+                    EventoRankeado(evento.titulo, comeco, evento.publico_estimado),
+                    key=EventoRankeado.ordem,
+                )
                 if len(resumo.ranking) > LIMITE_RANKING:
                     resumo.ranking.pop()
     return resumo

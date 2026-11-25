@@ -1,5 +1,5 @@
 import enum
-from datetime import datetime
+from datetime import date, datetime
 
 from sqlalchemy import (
     JSON,
@@ -43,6 +43,9 @@ class PeriodicidadeEnum(str, enum.Enum):
     SEMANAL = 'Semanal'
     MENSAL = 'Mensal'
     SOMENTE_NA_DATA_ESCOLHIDA = 'Somente na data escolhida'
+
+
+PERIODICIDADES_RECORRENTES = frozenset({PeriodicidadeEnum.SEMANAL, PeriodicidadeEnum.MENSAL})
 
 
 class ClassificacaoIndicativaEnum(str, enum.Enum):
@@ -144,6 +147,7 @@ class Evento(Base):
         Enum(PeriodicidadeEnum),
         nullable=True,
     )
+    data_fim_recorrencia: Mapped[date | None]
 
     classificacao_indicativa: Mapped[str | None] = mapped_column(
         String(30),

@@ -18,6 +18,7 @@ from app.models.evento import STATUS_EVENTO_ATIVO, Evento
 from app.models.visita import STATUS_VISITA_ATIVA, Visita
 from app.schemas.disponibilidade import DisponibilidadeEspacoResponse, DisponibilidadeVisitaResponse, Periodo
 from app.services import horario_service
+from app.services.recorrencia_evento import Intervalo, eventos_no_periodo, intervalos_programados
 
 type Agenda = type[Evento] | type[Visita]
 
@@ -69,22 +70,38 @@ def bloquear_agenda(db: Session, agenda: Agenda) -> None:
 def _bloqueios_do_dia(db: Session, data: date, espaco_id: int | None) -> list[Periodo]:
     inicio = datetime.combine(data, time.min)
     fim = datetime.max if data == date.max else inicio + timedelta(days=1)
-    agenda = Visita if espaco_id is None else Evento
-    query = select(agenda.data_inicio, agenda.data_fim).where(*sobreposicao(agenda, inicio, fim))
     if espaco_id is None:
-        query = query.where(Visita.status.in_(STATUS_VISITA_ATIVA))
+        visitas = (
+            select(Visita.data_inicio, Visita.data_fim)
+            .where(Visita.status.in_(STATUS_VISITA_ATIVA), *sobreposicao(Visita, inicio, fim))
+            .order_by(Visita.data_inicio)
+        )
+        reservas = ((comeco, termino) for comeco, termino in db.execute(visitas))
     else:
-        query = query.where(Evento.espaco_id == espaco_id, Evento.status.in_(STATUS_EVENTO_ATIVO))
+        reservas = _reservas_espaco(db, data, espaco_id, inicio, fim)
 
     bloqueios: list[Periodo] = []
-    for inicio_reserva, fim_reserva in db.execute(query.order_by(agenda.data_inicio)):
+    for inicio_reserva, fim_reserva in reservas:
         inicio_bloqueio = max(inicio_reserva, inicio)
         fim_bloqueio = min(fim_reserva, fim)
+        if inicio_bloqueio >= fim_bloqueio:
+            continue
         if bloqueios and inicio_bloqueio <= bloqueios[-1].data_fim:
             bloqueios[-1].data_fim = max(bloqueios[-1].data_fim, fim_bloqueio)
         else:
             bloqueios.append(Periodo(data_inicio=inicio_bloqueio, data_fim=fim_bloqueio))
     return bloqueios
+
+
+def _reservas_espaco(db: Session, data: date, espaco_id: int, inicio: datetime, fim: datetime) -> list[Intervalo]:
+    eventos = select(Evento).where(
+        Evento.espaco_id == espaco_id, Evento.status.in_(STATUS_EVENTO_ATIVO), *eventos_no_periodo(inicio, fim)
+    )
+    return sorted(
+        intervalo
+        for evento in db.scalars(eventos)
+        for intervalo in intervalos_programados(evento, desde=data, ate=data)
+    )
 
 
 def _janelas_livres(

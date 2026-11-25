@@ -1,3 +1,5 @@
+from datetime import datetime, time
+from heapq import merge
 from pathlib import Path
 from typing import Literal
 from uuid import uuid4
@@ -8,17 +10,19 @@ from sqlalchemy.orm import Session
 from starlette.datastructures import UploadFile
 
 from app.models.arquivo import ArquivoPDF
-from app.models.evento import STATUS_EVENTO_ATIVO, Evento
+from app.models.evento import PERIODICIDADES_RECORRENTES, STATUS_EVENTO_ATIVO, Evento
 from app.schemas.evento import (
     EventoCreate,
+    EventoPublicoResponse,
     EventoUpdate,
     EventoWrite,
     StatusEvento,
 )
-from app.services.disponibilidade import bloquear_agenda, sobreposicao, validar_horario_evento
+from app.services.disponibilidade import bloquear_agenda, validar_horario_evento
+from app.services.recorrencia_evento import eventos_no_periodo, intervalos_evento, intervalos_programados
 
 PASTA_PDFS = Path(__file__).resolve().parents[2] / 'storage' / 'private'
-LIMITE_PDF = 30 * 1024 * 1024
+LIMITE_PDF = 3 * 1024 * 1024
 
 
 def get(
@@ -41,31 +45,51 @@ def get(
     return list(db.scalars(query))
 
 
+def listar_programacao(db: Session) -> list[EventoPublicoResponse]:
+    programacao = []
+    for evento in get(db, status_evento='aceito'):
+        principal = EventoPublicoResponse.model_validate(evento)
+        programacao.extend(
+            principal.model_copy(update={'data_inicio': inicio, 'data_fim': fim})
+            for inicio, fim in intervalos_programados(evento)
+        )
+    return sorted(programacao, key=lambda item: (item.data_inicio, item.id))
+
+
 def _validar_disponibilidade(
     db: Session,
     dados: EventoWrite | Evento,
+    status_evento: StatusEvento,
     evento_id: int | None = None,
 ) -> None:
-    query = select(Evento.id).where(
+    limite = dados.data_fim_recorrencia if status_evento == 'aceito' else None
+    ultimo_dia = limite or dados.data_fim.date()
+    primeiro_dia = dados.data_inicio.date()
+    query = select(Evento).where(
         Evento.espaco_id == dados.espaco_id,
         Evento.status.in_(STATUS_EVENTO_ATIVO),
-        *sobreposicao(
-            Evento,
-            dados.data_inicio,
-            dados.data_fim,
-        ),
+        *eventos_no_periodo(dados.data_inicio, datetime.combine(ultimo_dia, time.max)),
     )
-
     if evento_id is not None:
         query = query.where(Evento.id != evento_id)
 
-    evento_conflitante = db.scalar(query.limit(1))
+    novos = intervalos_evento((dados.data_inicio, dados.data_fim), dados.periodicidade, limite)
+    novo = next(novos, None)
+    ocupados = merge(
+        *(intervalos_programados(evento, desde=primeiro_dia, ate=ultimo_dia) for evento in db.scalars(query))
+    )
 
-    if evento_conflitante is not None:
-        raise HTTPException(
-            status_code=status.HTTP_409_CONFLICT,
-            detail=('Já existe um evento nesse espaço e período. Escolha outro horário ou espaço.'),
-        )
+    for inicio, fim in ocupados:
+        while novo is not None and novo[1] <= inicio:
+            novo = next(novos, None)
+        if novo is None:
+            return
+        if novo[0] < fim:
+            raise HTTPException(
+                status.HTTP_409_CONFLICT,
+                f'Já existe um evento nesse espaço e período ({max(inicio, novo[0]):%d/%m/%Y às %H:%M}). '
+                'Escolha outro horário ou espaço.',
+            )
 
 
 def _classificacoes(dados: EventoWrite, evento: Evento | None = None) -> dict:
@@ -96,6 +120,7 @@ def create(
     _validar_disponibilidade(
         db,
         dados,
+        status_evento,
     )
 
     validar_horario_evento(dados.data_inicio, dados.data_fim, dados.espaco_id)
@@ -126,11 +151,13 @@ def create(
 
 
 def _salvar_pdf(db: Session, arquivo: UploadFile, caminho: Path) -> int:
+    if arquivo.size is not None and arquivo.size > LIMITE_PDF:
+        raise HTTPException(status.HTTP_400_BAD_REQUEST, 'O arquivo excede o limite permitido de 3 MB.')
     conteudo = arquivo.file.read(LIMITE_PDF + 1)
     if arquivo.content_type != 'application/pdf' or not conteudo.startswith(b'%PDF-'):
         raise HTTPException(status.HTTP_400_BAD_REQUEST, 'Apenas arquivos PDF são permitidos.')
     if len(conteudo) > LIMITE_PDF:
-        raise HTTPException(status.HTTP_400_BAD_REQUEST, 'O arquivo excede o limite permitido de 30 MB.')
+        raise HTTPException(status.HTTP_400_BAD_REQUEST, 'O arquivo excede o limite permitido de 3 MB.')
 
     caminho.parent.mkdir(parents=True, exist_ok=True)
     caminho.write_bytes(conteudo)
@@ -175,8 +202,9 @@ def update(
     if evento is None:
         return None
 
+    _atualizar_recorrencia(dados, evento)
     if dados.status in STATUS_EVENTO_ATIVO:
-        _validar_disponibilidade(db, dados, evento.id)
+        _validar_disponibilidade(db, dados, dados.status, evento.id)
 
     if (dados.data_inicio, dados.data_fim, dados.espaco_id) != (evento.data_inicio, evento.data_fim, evento.espaco_id):
         validar_horario_evento(dados.data_inicio, dados.data_fim, dados.espaco_id)
@@ -204,6 +232,22 @@ def update(
     return evento
 
 
+def _atualizar_recorrencia(dados: EventoUpdate, evento: Evento) -> None:
+    if 'periodicidade' not in dados.model_fields_set:
+        dados.periodicidade = evento.periodicidade
+    mesma_periodicidade = dados.periodicidade == evento.periodicidade
+    if mesma_periodicidade and 'data_fim_recorrencia' not in dados.model_fields_set:
+        dados.data_fim_recorrencia = evento.data_fim_recorrencia
+    limite = dados.data_fim_recorrencia
+    if limite is not None and limite < dados.data_inicio.date():
+        raise HTTPException(422, 'A data de fim da recorrência deve ser igual ou posterior à data de início.')
+    if limite is not None and dados.data_inicio.date() != dados.data_fim.date():
+        raise HTTPException(422, 'O início e o fim de cada ocorrência devem ficar no mesmo dia.')
+    if dados.periodicidade in PERIODICIDADES_RECORRENTES and limite is None:
+        if not mesma_periodicidade or evento.data_fim_recorrencia is not None:
+            raise HTTPException(422, 'Informe a data de fim da recorrência semanal ou mensal.')
+
+
 def _validar_arquivo_existente(db: Session, arquivo_pdf_id: int | None) -> None:
     if arquivo_pdf_id is not None and db.get(ArquivoPDF, arquivo_pdf_id) is None:
         raise HTTPException(status.HTTP_422_UNPROCESSABLE_ENTITY, 'Arquivo PDF não encontrado.')
@@ -228,7 +272,7 @@ def update_status(
         return None
 
     if novo_status in STATUS_EVENTO_ATIVO:
-        _validar_disponibilidade(db, evento, evento.id)
+        _validar_disponibilidade(db, evento, novo_status, evento.id)
     evento.status = novo_status
 
     db.commit()

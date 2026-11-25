@@ -19,11 +19,13 @@ As consultas retornam `{"eventos": [...]}`.
 | `GET /eventos/aceitos` | Programação confirmada, com os campos públicos do evento | Público |
 | `GET /eventos/ordenados` | Todos os eventos por data de início crescente, com desempate pelo ID | Bearer do Keycloak |
 
-O frontend público deve usar `GET /eventos/aceitos` para carregar a programação. A resposta inclui ID, status, título, descrição, classificação indicativa, datas e ID do espaço.
+Use `GET /eventos/aceitos` para carregar a agenda. A resposta inclui uma entrada para cada ocorrência aceita. O `id` identifica o evento e é compartilhado pela série. Use `ocorrencia_id` como chave única no calendário. As listagens autenticadas de gestão retornam um registro por solicitação.
 
 `POST /eventos/` é público: sem sessão, retorna o evento com status `pendente`; com token válido, identifica o administrador e cria o evento já como `aceito`. O status no JSON de entrada não altera essa regra. O campo `celular` é opcional (até 30 caracteres). Enviar `status="aceito"` no cadastro público mantém o evento pendente; a aprovação exige autenticação.
 
-`POST /eventos/` aceita JSON ou `multipart/form-data`. No formulário multipart, envie o JSON como texto no campo `dados` e, opcionalmente, um PDF de até 30 MB no campo `arquivo`. O anexo é salvo em `storage/private/`, e a resposta autenticada de consulta inclui `arquivo_pdf_id`. O papel `administrador` pode baixar o PDF em `GET /eventos/{id}/proposta`.
+`POST /eventos/` aceita JSON ou `multipart/form-data`. No formulário multipart, envie o JSON como texto no campo `dados` e, opcionalmente, um PDF de até 3 MB (3.145.728 bytes) no campo `arquivo`. O anexo é salvo em `storage/private/`, e a resposta autenticada de consulta inclui `arquivo_pdf_id`. O papel `administrador` pode baixar o PDF em `GET /eventos/{id}/proposta`.
+
+Ao selecionar a periodicidade `Semanal` ou `Mensal`, envie `data_fim_recorrencia` no formato `AAAA-MM-DD`. A data é inclusiva. `data_inicio` e `data_fim` continuam definindo a primeira ocorrência e a duração de cada repetição. A série semanal repete no mesmo dia da semana. A mensal repete no mesmo dia do mês, usando o último dia nos meses mais curtos. A aprovação verifica todos os horários da série e retorna `409` se houver conflito. Enquanto pendente, a solicitação bloqueia apenas a primeira ocorrência. As ocorrências aceitas aparecem na agenda e são contabilizadas no relatório pelo dia em que cada uma começa.
 
 A reserva pode enviar listas `segmentos` e `pautas` com as opções selecionadas. Os campos singulares continuam disponíveis para clientes antigos. A resposta autenticada indica a origem `solicitacao_publica` ou `administrativo` quando identificável.
 

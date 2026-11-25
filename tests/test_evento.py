@@ -118,6 +118,7 @@ def test_get_evento_populated(client, evento, authenticated_headers):
                 'pautas': [],
                 'origem': None,
                 'periodicidade': None,
+                'data_fim_recorrencia': None,
                 'link_complementar': None,
                 'arquivo_pdf_id': None,
                 'aceitou_termos': False,

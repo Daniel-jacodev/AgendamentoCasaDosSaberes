@@ -1,4 +1,4 @@
-from datetime import datetime
+from datetime import date, datetime
 from typing import Literal, Self
 
 from pydantic import (
@@ -6,11 +6,13 @@ from pydantic import (
     ConfigDict,
     EmailStr,
     Field,
+    computed_field,
     field_validator,
     model_validator,
 )
 
 from app.models.evento import (
+    PERIODICIDADES_RECORRENTES,
     ClassificacaoIndicativaEnum,
     PautaEnum,
     PeriodicidadeEnum,
@@ -46,6 +48,9 @@ class EventoBase(BaseModel):
     segmentos: list[SegmentoEnum] | None = Field(default=None, max_length=len(SegmentoEnum))
     pautas: list[PautaEnum] | None = Field(default=None, max_length=len(PautaEnum))
     periodicidade: PeriodicidadeEnum | None = None
+    data_fim_recorrencia: date | None = Field(
+        default=None, description='Último dia permitido para a recorrência semanal ou mensal, inclusive.'
+    )
     classificacao_indicativa: ClassificacaoIndicativaEnum | None = None
 
     publico_estimado: int | None = None
@@ -119,6 +124,12 @@ class EventoWrite(EventoBase):
         if self.data_fim <= self.data_inicio:
             raise ValueError('A data de fim deve ser posterior à data de início.')
 
+        if self.periodicidade in PERIODICIDADES_RECORRENTES:
+            if self.data_fim_recorrencia is not None and self.data_fim_recorrencia < self.data_inicio.date():
+                raise ValueError('A data de fim da recorrência deve ser igual ou posterior à data de início.')
+        elif self.data_fim_recorrencia is not None:
+            raise ValueError('A data de fim da recorrência se aplica a eventos semanais ou mensais.')
+
         return self
 
 
@@ -127,6 +138,13 @@ class EventoCreate(EventoWrite):
         default='pendente',
         exclude=True,
     )
+
+    @model_validator(mode='after')
+    def validar_fim_recorrencia(self) -> Self:
+        recorrente = self.periodicidade in PERIODICIDADES_RECORRENTES
+        if recorrente and self.data_fim_recorrencia is None:
+            raise ValueError('Informe a data de fim da recorrência semanal ou mensal.')
+        return self
 
 
 class EventoUpdate(EventoWrite):
@@ -182,6 +200,11 @@ class EventoPublicoResponse(BaseModel):
     data_inicio: datetime
     data_fim: datetime
     espaco_id: int
+
+    @computed_field
+    @property
+    def ocorrencia_id(self) -> str:
+        return f'{self.id}:{self.data_inicio.date().isoformat()}'
 
 
 class EventosPublicosResponse(BaseModel):

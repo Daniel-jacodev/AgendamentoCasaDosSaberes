@@ -58,15 +58,7 @@ def get_evento(
             eventos=eventos,
         )
 
-    eventos = eventoService.get(
-        db,
-        status_evento='aceito',
-        ordenar_por_data=True,
-    )
-
-    return EventosPublicosResponse(
-        eventos=eventos,
-    )
+    return EventosPublicosResponse(eventos=eventoService.listar_programacao(db))
 
 
 @router.get(
@@ -93,13 +85,7 @@ def get_eventos_pendentes(
 def get_eventos_aceitos(
     db: T_Session,
 ):
-    return {
-        'eventos': eventoService.get(
-            db,
-            status_evento='aceito',
-            ordenar_por_data=True,
-        )
-    }
+    return {'eventos': eventoService.listar_programacao(db)}
 
 
 @router.get(
@@ -133,7 +119,11 @@ def get_eventos_ordenados(
                         'required': ['dados'],
                         'properties': {
                             'dados': {'type': 'string', 'description': 'JSON com os dados do evento.'},
-                            'arquivo': {'type': 'string', 'format': 'binary'},
+                            'arquivo': {
+                                'type': 'string',
+                                'format': 'binary',
+                                'description': 'PDF opcional de até 3 MB.',
+                            },
                         },
                     },
                 },
