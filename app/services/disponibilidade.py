@@ -4,7 +4,7 @@ from fastapi import HTTPException
 from sqlalchemy import select, text
 from sqlalchemy.orm import Session
 
-from app.constants.espacos import ESPACO_AREA_EXTERNA_ID
+from app.constants.espacos import ESPACO_AREA_EXTERNA_ID, espacos_conflitantes
 from app.constants.horarios import (
     DURACAO_MAXIMA_HORAS,
     DURACAO_MINIMA_HORAS,
@@ -95,7 +95,9 @@ def _bloqueios_do_dia(db: Session, data: date, espaco_id: int | None) -> list[Pe
 
 def _reservas_espaco(db: Session, data: date, espaco_id: int, inicio: datetime, fim: datetime) -> list[Intervalo]:
     eventos = select(Evento).where(
-        Evento.espaco_id == espaco_id, Evento.status.in_(STATUS_EVENTO_ATIVO), *eventos_no_periodo(inicio, fim)
+        Evento.espaco_id.in_(espacos_conflitantes(espaco_id)),
+        Evento.status.in_(STATUS_EVENTO_ATIVO),
+        *eventos_no_periodo(inicio, fim),
     )
     return sorted(
         intervalo

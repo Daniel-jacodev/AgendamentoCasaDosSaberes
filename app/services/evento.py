@@ -9,6 +9,7 @@ from sqlalchemy import select
 from sqlalchemy.orm import Session
 from starlette.datastructures import UploadFile
 
+from app.constants.espacos import espacos_conflitantes
 from app.models.arquivo import ArquivoPDF
 from app.models.evento import PERIODICIDADES_RECORRENTES, STATUS_EVENTO_ATIVO, Evento
 from app.schemas.evento import (
@@ -66,7 +67,7 @@ def _validar_disponibilidade(
     ultimo_dia = limite or dados.data_fim.date()
     primeiro_dia = dados.data_inicio.date()
     query = select(Evento).where(
-        Evento.espaco_id == dados.espaco_id,
+        Evento.espaco_id.in_(espacos_conflitantes(dados.espaco_id)),
         Evento.status.in_(STATUS_EVENTO_ATIVO),
         *eventos_no_periodo(dados.data_inicio, datetime.combine(ultimo_dia, time.max)),
     )

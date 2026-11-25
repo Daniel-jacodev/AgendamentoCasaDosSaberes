@@ -31,7 +31,7 @@ A reserva pode enviar listas `segmentos` e `pautas` com as opções selecionadas
 
 `PATCH /eventos/{id}/status` recebe `{"status": "aceito"}`, `{"status": "negado"}` ou `{"status": "cancelado"}`. A edição completa via `PUT /eventos/{id}` também pode atualizar o status. Eventos negados e cancelados liberam o horário e ficam fora dos totais de confirmados e pendentes do relatório. `DELETE /eventos/{id}` exclui o evento e retorna `204`. PATCH, PUT e DELETE exigem token do Keycloak.
 
-O espaço é obrigatório. Os IDs são `1 = Auditório`, `2 = Quintal`, `3 = Salas Expositivas`, `4 = Varanda` e `5 = Área Externa`. Consulte os [comandos de inicialização](scripts/README.md).
+O espaço é obrigatório. Os IDs são `1 = Auditório`, `2 = Quintal`, `3 = Salas Expositivas (legado)`, `4 = Varanda`, `5 = Área Externa`, `6 = Sala 1`, `7 = Sala 2` e `8 = Corredor`. As duas salas e o corredor têm agendas independentes. Reservas do espaço legado bloqueiam as duas salas sem bloquear o corredor. Consulte os [comandos de inicialização](scripts/README.md).
 
 ## Consultas de visitas mediadas
 

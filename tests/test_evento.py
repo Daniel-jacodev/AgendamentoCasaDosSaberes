@@ -448,7 +448,7 @@ def test_criacao_publica_fica_pendente_mesmo_com_token_enviado(client, authentic
     assert response.json()['status'] == 'pendente'
 
 
-@pytest.mark.parametrize('espaco_id', [2, 3, 4])
+@pytest.mark.parametrize('espaco_id', [2, 3, 4, 6, 7, 8])
 def test_eventos_simultaneos_em_espacos_diferentes(client, evento, authenticated_headers, espaco_id):
     payload = client.get('/eventos/', headers=authenticated_headers).json()['eventos'][0]
     payload['espaco_id'] = espaco_id
@@ -467,7 +467,7 @@ def test_eventos_simultaneos_em_espacos_diferentes(client, evento, authenticated
     assert salvo['espaco_id'] == espaco_id
 
 
-@pytest.mark.parametrize('espaco_id', [None, 0, 6, 'ausente'])
+@pytest.mark.parametrize('espaco_id', [None, 0, 9, 'ausente'])
 def test_espaco_obrigatorio(client, evento, authenticated_headers, espaco_id):
     payload = client.get('/eventos/', headers=authenticated_headers).json()['eventos'][0]
     if espaco_id == 'ausente':
@@ -536,3 +536,42 @@ def test_gravacao_evento_recusa_periodos_fora_da_disponibilidade(client, espaco,
         },
     )
     assert resposta.status_code == HTTPStatus.UNPROCESSABLE_ENTITY
+
+
+def test_salas_e_corredor_sao_independentes_e_preservam_reservas_legadas(client, authenticated_headers):
+    payload = {
+        'titulo': 'Exposição de arte',
+        'descricao': 'Atividade aberta à comunidade.',
+        'data_inicio': '2026-12-01T14:00:00',
+        'data_fim': '2026-12-01T16:00:00',
+    }
+
+    def gravar(espaco_id):
+        return client.post('/eventos/', json={**payload, 'espaco_id': espaco_id})
+
+    def bloqueios(espaco_id):
+        resposta = client.get('/disponibilidade', params={'data': '2026-12-01', 'espaco_id': espaco_id})
+        assert resposta.status_code == HTTPStatus.OK
+        return resposta.json()['bloqueios']
+
+    legado = gravar(3)
+    assert legado.status_code == HTTPStatus.CREATED
+    assert bloqueios(6) == bloqueios(7) == [{'data_inicio': '2026-12-01T14:00:00', 'data_fim': '2026-12-01T16:00:00'}]
+    assert bloqueios(8) == []
+    assert gravar(6).status_code == HTTPStatus.CONFLICT
+    assert gravar(7).status_code == HTTPStatus.CONFLICT
+    assert gravar(8).status_code == HTTPStatus.CREATED
+
+    cancelada = client.patch(
+        f'/eventos/{legado.json()["id"]}/status', json={'status': 'cancelado'}, headers=authenticated_headers
+    )
+    assert cancelada.status_code == HTTPStatus.OK
+    assert bloqueios(6) == bloqueios(7) == []
+    assert gravar(6).status_code == HTTPStatus.CREATED
+    assert bloqueios(7) == []
+    assert gravar(7).status_code == HTTPStatus.CREATED
+    assert gravar(3).status_code == HTTPStatus.CONFLICT
+
+    for espaco_id in (6, 7, 8):
+        assert bloqueios(espaco_id)
+        assert gravar(espaco_id).status_code == HTTPStatus.CONFLICT

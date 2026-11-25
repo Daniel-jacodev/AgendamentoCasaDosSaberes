@@ -11,6 +11,7 @@ from pydantic import (
     model_validator,
 )
 
+from app.constants.espacos import DESCRICAO_ESPACOS, ESPACO_ID_MAXIMO, ESPACO_ID_MINIMO
 from app.models.evento import (
     PERIODICIDADES_RECORRENTES,
     ClassificacaoIndicativaEnum,
@@ -35,7 +36,7 @@ class EventoBase(BaseModel):
     data_fim: datetime
 
     espaco_id: int = Field(
-        description=('1 = Auditório; 2 = Quintal; 3 = Salas Expositivas; 4 = Varanda; 5 = Área Externa'),
+        description=DESCRICAO_ESPACOS,
     )
 
     responsavel: str | None = None
@@ -71,9 +72,9 @@ class EventoWrite(EventoBase):
     )
 
     espaco_id: int = Field(
-        ge=1,
-        le=5,
-        description=('1 = Auditório; 2 = Quintal; 3 = Salas Expositivas; 4 = Varanda; 5 = Área Externa'),
+        ge=ESPACO_ID_MINIMO,
+        le=ESPACO_ID_MAXIMO,
+        description=DESCRICAO_ESPACOS,
     )
 
     responsavel: str | None = Field(
@@ -222,8 +223,8 @@ class EventoFilter(BaseModel):
 
     espaco_id: int | None = Field(
         default=None,
-        ge=1,
-        le=5,
+        ge=ESPACO_ID_MINIMO,
+        le=ESPACO_ID_MAXIMO,
     )
 
     classificacao_indicativa: ClassificacaoIndicativaEnum | None = None
