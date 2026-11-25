@@ -9,6 +9,7 @@ from app.config.database import init_db
 from app.controllers.disponibilidade import router as disponibilidade_router
 from app.controllers.evento import router as eventos_router
 from app.controllers.exposicao import router as exposicoes_router
+from app.controllers.relatorio import router as relatorios_router
 from app.controllers.usuarios import router as usuarios_router
 from app.controllers.visita import router as visitas_router
 
@@ -25,9 +26,11 @@ app.add_middleware(
     allow_origins=settings.cors_origins,
     allow_methods=['GET', 'POST', 'PUT', 'DELETE'],
     allow_headers=['Authorization', 'Content-Type'],
+    expose_headers=['Content-Disposition'],
 )
 app.include_router(eventos_router)
 app.include_router(disponibilidade_router)
 app.include_router(usuarios_router)
 app.include_router(visitas_router)
 app.include_router(exposicoes_router)
+app.include_router(relatorios_router)

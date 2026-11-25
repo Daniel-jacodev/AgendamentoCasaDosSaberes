@@ -57,6 +57,14 @@ O formulário preserva a ordem de `campos` e de `opcoes`. Cada campo tem `id` ú
 
 As tabelas são criadas na inicialização da API. Os dados de protótipo já salvos no navegador podem ser enviados pelos PUTs correspondentes. As novas rotas administrativas exigem token Bearer com o papel de realm `administrador` no claim `realm_access.roles`. O arquivo de importação do Keycloak inclui o papel e seu vínculo com o client da API. Em um realm existente, crie o papel, adicione-o ao escopo do client e atribua-o aos usuários responsáveis. Esses usuários devem entrar novamente para obter um token com o papel.
 
+## Relatório administrativo em PDF
+
+`GET /relatorios/agendamentos?tipo=ambos&data_inicio=2026-11-01&data_fim=2026-11-30`
+
+Envie `Authorization: Bearer <access_token>` com o papel `administrador`. O parâmetro `tipo` aceita `eventos`, `visitas` ou `ambos`. O período inclui os dois dias informados e usa a data de início de cada agendamento, no horário de Fortaleza. Datas inválidas, campos obrigatórios ausentes ou a data final anterior à inicial retornam `422`.
+
+A resposta contém `application/pdf` e o nome sugerido para download em `Content-Disposition`. Períodos sem agendamentos também retornam um PDF. O relatório informa os totais de confirmados e de pendentes. Os gráficos mostram o percentual de confirmados por dia da semana, hora de início e, nos eventos, por pauta. O ranking apresenta até cinco eventos com maior público estimado, pois o sistema registra previsões de público. Para visitas, o PDF mostra pessoas previstas, grupos com pessoas com deficiência e a distribuição por natureza da instituição.
+
 ## Disponibilidade
 
 | Rota pública | Agenda consultada |
@@ -159,7 +167,7 @@ Dados de contato e anexos devem ter acesso restrito e não devem aparecer nas re
 - **Notificação:** retorno manual ou e-mail automático (RF19).
 - **Visitas sem agendamento:** aplicação da exceção para grupos pequenos (RNG02).
 
-A confirmação é sempre manual (RNG01), não há cobrança (RNG03), e 48 horas é um prazo de referência para retorno (RNG04). Dashboards quantitativos (RF20) estão fora do escopo. Essas definições pendentes não impedem a organização das pastas, mas devem orientar a implementação das respectivas funcionalidades.
+A confirmação é sempre manual (RNG01), não há cobrança (RNG03), e 48 horas é um prazo de referência para retorno (RNG04). O RF20 é atendido pela rota de relatório administrativo em PDF. Essas definições pendentes não impedem a organização das pastas, mas devem orientar a implementação das respectivas funcionalidades.
 
 Referências técnicas: [organização com APIRouter e dependências](https://fastapi.tiangolo.com/tutorial/bigger-applications/), [schemas de resposta no FastAPI](https://fastapi.tiangolo.com/tutorial/response-model/) e [OpenID Connect no Keycloak](https://www.keycloak.org/securing-apps/oidc-layers).
 

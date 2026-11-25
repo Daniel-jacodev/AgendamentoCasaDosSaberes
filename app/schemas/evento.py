@@ -95,11 +95,6 @@ class EventoWrite(EventoBase):
         gt=0,
     )
 
-    segmento: [SegmentoEnum] = Field(
-        default = None,
-        max_length = 3,
-    )
-
     @field_validator('data_inicio', 'data_fim')
     @classmethod
     def normalizar_horario(cls, valor: datetime) -> datetime:
