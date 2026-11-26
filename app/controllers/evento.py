@@ -26,6 +26,9 @@ from app.schemas.evento import (
     EventoUpdate,
 )
 from app.services import evento as eventoService
+from app.services.evento import (
+    pdf_or_link
+)
 from app.services.auth import (
     exigir_administrador,
     get_current_user_claims,
@@ -151,6 +154,8 @@ async def create_evento(
             return await run_in_threadpool(eventoService.create, db, evento, status_evento, arquivo)
 
     evento = _validar_dados_evento(await request.body())
+    if pdf_or_link is False:
+        raise HTTPException(400, 'Envie o PDF ou o Link Complementar, ambos não podem estar vazios')
     return await run_in_threadpool(eventoService.create, db, evento, status_evento)
 
 

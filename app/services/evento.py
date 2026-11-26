@@ -298,3 +298,8 @@ def delete(
     db.commit()
 
     return True
+
+def pdf_or_link(EventoCreate: EventoCreate) -> bool:
+    if arquivo_pdf_id and link_complementar is None:
+        return False
+    return True
